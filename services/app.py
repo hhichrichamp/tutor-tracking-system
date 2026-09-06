@@ -505,10 +505,7 @@ def login_page():
                 st.error("Invalid User ID or password.")
 
         st.info(
-            "Demo accounts: "
-            "T001 / 1234, "
-            "T002 / 5678, "
-            "T003 / 9999. "
+            "Welcome to the tutor center tracking system. "
             "Students can enter S001–S005 without a password."
         )
 
@@ -1706,19 +1703,14 @@ def create_tutoring_session():
         "Session title",
         placeholder="Java Help"
     )
-
     students = st.multiselect(
-
         "Students",
-
         options=[
             s["id"]
             for s in USERS["students"]
         ],
-
         format_func=lambda sid:
-            f"{get_student(sid)['name']}"
-
+            student_display_name(get_student(sid))
     )
 
     session_date = st.date_input(
@@ -2397,7 +2389,7 @@ def tutoring_qr_page(session_id, token):
         st.balloons()
 
 
-        
+
 
 # ============================================================
 # CLASSROOM SUPPORT QR PAGE
