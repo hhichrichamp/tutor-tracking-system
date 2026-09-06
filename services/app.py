@@ -1,14 +1,14 @@
 import streamlit as st
 import pandas as pd
 import qrcode
-from io import BytesIO
-from datetime import datetime, date, time, timedelta
-import json
+import io
 import uuid
+
+from datetime import datetime, timedelta, date, time
 
 
 # ============================================================
-# CONFIGURATION
+# PAGE CONFIGURATION
 # ============================================================
 
 st.set_page_config(
@@ -20,182 +20,338 @@ st.set_page_config(
 
 
 # ============================================================
-# CUSTOM CSS
+# CSS
 # ============================================================
 
 st.markdown("""
 <style>
 
-    .main-title {
-        font-size: 2.2rem;
-        font-weight: 700;
-        margin-bottom: 0.2rem;
-    }
+.main-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 0;
+}
 
-    .subtitle {
-        color: #6b7280;
-        margin-bottom: 2rem;
-    }
+.subtitle {
+    color: #666;
+    margin-top: 0;
+    margin-bottom: 25px;
+}
 
-    .metric-card {
-        background-color: #f8fafc;
-        border-radius: 12px;
-        padding: 20px;
-        border: 1px solid #e5e7eb;
-    }
+.metric-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    text-align: center;
+}
 
-    .session-card {
-        background-color: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 18px;
-        margin-bottom: 12px;
-    }
+.session-card {
+    background: white;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 12px;
+}
 
-    .status-active {
-        color: #15803d;
-        font-weight: 700;
-    }
+.status-active {
+    color: #15803d;
+    font-weight: 700;
+}
 
-    .status-scheduled {
-        color: #2563eb;
-        font-weight: 700;
-    }
+.status-completed {
+    color: #2563eb;
+    font-weight: 700;
+}
 
-    .status-completed {
-        color: #6b7280;
-        font-weight: 700;
-    }
+.status-scheduled {
+    color: #d97706;
+    font-weight: 700;
+}
 
-    .qr-box {
-        text-align: center;
-        padding: 20px;
-    }
+.status-cancelled {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.qr-box {
+    text-align: center;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+}
+
+.small-text {
+    color: #666;
+    font-size: 0.9rem;
+}
 
 </style>
 """, unsafe_allow_html=True)
 
 
 # ============================================================
-# USER DATA
+# SAMPLE USERS
 # ============================================================
 
-@st.cache_data
 def load_users():
 
-    with open("data/users.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+    return {
+        "admins": [
+            {
+                "id": "A001",
+                "name": "Administrator",
+                "password": "admin123"
+            }
+        ],
+
+        "tutors": [
+            {
+                "id": "T001",
+                "name": "Ahmed Tutor",
+                "password": "1234"
+            },
+            {
+                "id": "T002",
+                "name": "Maria Tutor",
+                "password": "5678"
+            },
+            {
+                "id": "T003",
+                "name": "John Tutor",
+                "password": "9999"
+            }
+        ],
+
+        "students": [
+            {
+                "id": "S001",
+                "name": "Alice Smith"
+            },
+            {
+                "id": "S002",
+                "name": "Bob Johnson"
+            },
+            {
+                "id": "S003",
+                "name": "Carol Brown"
+            },
+            {
+                "id": "S004",
+                "name": "David Wilson"
+            },
+            {
+                "id": "S005",
+                "name": "Emma Davis"
+            }
+        ]
+    }
 
 
 USERS = load_users()
 
 
 # ============================================================
-# SAMPLE DATA
+# SESSION STATE INITIALIZATION
 # ============================================================
 
-def create_sample_sessions():
+def initialize_data():
 
-    today = date.today()
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
 
-    return [
-        {
-            "id": "SES001",
-            "tutor_id": "T001",
-            "student_ids": ["S001"],
-            "date": today,
-            "start_time": time(14, 0),
-            "expected_minutes": 60,
-            "status": "Scheduled",
-            "actual_start": None,
-            "actual_end": None,
-            "qr_token": None
-        },
-        {
-            "id": "SES002",
-            "tutor_id": "T001",
-            "student_ids": ["S002"],
-            "date": today,
-            "start_time": time(16, 0),
-            "expected_minutes": 90,
-            "status": "Active",
-            "actual_start": datetime.now() - timedelta(minutes=20),
-            "actual_end": None,
-            "qr_token": "DEMO-SES002"
-        },
-        {
-            "id": "SES003",
-            "tutor_id": "T002",
-            "student_ids": ["S003", "S004"],
-            "date": today - timedelta(days=1),
-            "start_time": time(15, 0),
-            "expected_minutes": 60,
-            "status": "Completed",
-            "actual_start": datetime.combine(
-                today - timedelta(days=1),
-                time(15, 2)
-            ),
-            "actual_end": datetime.combine(
-                today - timedelta(days=1),
-                time(16, 3)
-            ),
-            "qr_token": "DEMO-SES003"
-        },
-        {
-            "id": "SES004",
-            "tutor_id": "T003",
-            "student_ids": ["S005"],
-            "date": today - timedelta(days=2),
-            "start_time": time(17, 0),
-            "expected_minutes": 120,
-            "status": "Completed",
-            "actual_start": datetime.combine(
-                today - timedelta(days=2),
-                time(17, 1)
-            ),
-            "actual_end": datetime.combine(
-                today - timedelta(days=2),
-                time(18, 55)
-            ),
-            "qr_token": "DEMO-SES004"
-        }
-    ]
+    if "user" not in st.session_state:
+        st.session_state.user = None
+
+    if "role" not in st.session_state:
+        st.session_state.role = None
+
+    # --------------------------------------------------------
+    # INDIVIDUAL TUTORING SESSIONS
+    # --------------------------------------------------------
+
+    if "sessions" not in st.session_state:
+
+        now = datetime.now()
+
+        st.session_state.sessions = [
+
+            {
+                "id": "SES001",
+                "type": "Individual Tutoring",
+                "tutor_id": "T001",
+                "student_ids": ["S001"],
+                "title": "Java Help",
+                "date": now.date(),
+                "scheduled_start": datetime.combine(
+                    now.date(),
+                    time(14, 0)
+                ),
+                "scheduled_end": datetime.combine(
+                    now.date(),
+                    time(15, 0)
+                ),
+                "actual_start": None,
+                "actual_end": None,
+                "status": "Scheduled",
+                "qr_token": None
+            },
+
+            {
+                "id": "SES002",
+                "type": "Individual Tutoring",
+                "tutor_id": "T001",
+                "student_ids": ["S002"],
+                "title": "Java Programming",
+                "date": now.date(),
+                "scheduled_start": datetime.combine(
+                    now.date(),
+                    time(16, 0)
+                ),
+                "scheduled_end": datetime.combine(
+                    now.date(),
+                    time(17, 30)
+                ),
+                "actual_start": now - timedelta(minutes=20),
+                "actual_end": None,
+                "status": "Active",
+                "qr_token": "DEMO-SES002"
+            },
+
+            {
+                "id": "SES003",
+                "type": "Individual Tutoring",
+                "tutor_id": "T002",
+                "student_ids": ["S003", "S004"],
+                "title": "Python Help",
+                "date": now.date() - timedelta(days=1),
+                "scheduled_start": datetime.combine(
+                    now.date() - timedelta(days=1),
+                    time(15, 0)
+                ),
+                "scheduled_end": datetime.combine(
+                    now.date() - timedelta(days=1),
+                    time(16, 0)
+                ),
+                "actual_start": datetime.combine(
+                    now.date() - timedelta(days=1),
+                    time(15, 2)
+                ),
+                "actual_end": datetime.combine(
+                    now.date() - timedelta(days=1),
+                    time(16, 3)
+                ),
+                "status": "Completed",
+                "qr_token": "DEMO-SES003"
+            }
+        ]
+
+    # --------------------------------------------------------
+    # CLASS SCHEDULE
+    # --------------------------------------------------------
+
+    if "classes" not in st.session_state:
+
+        now = datetime.now()
+
+        st.session_state.classes = [
+
+            {
+                "id": "CLS001",
+                "course": "420-N34-Java Web Programming",
+                "title": "Spring Boot / REST",
+                "date": now.date(),
+                "start": datetime.combine(
+                    now.date(),
+                    time(10, 0)
+                ),
+                "end": datetime.combine(
+                    now.date(),
+                    time(12, 0)
+                ),
+                "room": "Room B201",
+                "max_tutors": 2,
+                "status": "Open",
+                "qr_token": "CLASS-CLS001"
+            },
+
+            {
+                "id": "CLS002",
+                "course": "420-SN1-RE Programming",
+                "title": "Python / NumPy",
+                "date": now.date() + timedelta(days=1),
+                "start": datetime.combine(
+                    now.date() + timedelta(days=1),
+                    time(13, 0)
+                ),
+                "end": datetime.combine(
+                    now.date() + timedelta(days=1),
+                    time(15, 0)
+                ),
+                "room": "Lab A102",
+                "max_tutors": 3,
+                "status": "Open",
+                "qr_token": "CLASS-CLS002"
+            }
+        ]
+
+    # --------------------------------------------------------
+    # CLASS SIGNUPS
+    # --------------------------------------------------------
+
+    if "class_signups" not in st.session_state:
+
+        st.session_state.class_signups = [
+
+            {
+                "class_id": "CLS001",
+                "tutor_id": "T001",
+                "signup_time": datetime.now()
+            },
+
+            {
+                "class_id": "CLS002",
+                "tutor_id": "T002",
+                "signup_time": datetime.now()
+            }
+        ]
+
+    # --------------------------------------------------------
+    # ATTENDANCE
+    # --------------------------------------------------------
+
+    if "attendance" not in st.session_state:
+
+        st.session_state.attendance = [
+
+            {
+                "id": "ATT001",
+                "type": "Tutoring",
+                "session_id": "SES003",
+                "class_id": None,
+                "student_id": "S003",
+                "tutor_id": "T002",
+                "check_in": datetime.now() - timedelta(days=1, hours=1),
+                "check_out": datetime.now() - timedelta(days=1),
+                "status": "Present"
+            },
+
+            {
+                "id": "ATT002",
+                "type": "Tutoring",
+                "session_id": "SES003",
+                "class_id": None,
+                "student_id": "S004",
+                "tutor_id": "T002",
+                "check_in": datetime.now() - timedelta(days=1, hours=1),
+                "check_out": datetime.now() - timedelta(days=1),
+                "status": "Present"
+            }
+        ]
 
 
-if "sessions" not in st.session_state:
-    st.session_state.sessions = create_sample_sessions()
-
-
-if "attendance" not in st.session_state:
-
-    st.session_state.attendance = [
-        {
-            "id": "ATT001",
-            "session_id": "SES003",
-            "student_id": "S003",
-            "check_in": datetime.combine(
-                date.today() - timedelta(days=1),
-                time(15, 3)
-            ),
-            "check_out": datetime.combine(
-                date.today() - timedelta(days=1),
-                time(16, 2)
-            )
-        },
-        {
-            "id": "ATT002",
-            "session_id": "SES003",
-            "student_id": "S004",
-            "check_in": datetime.combine(
-                date.today() - timedelta(days=1),
-                time(15, 4)
-            ),
-            "check_out": datetime.combine(
-                date.today() - timedelta(days=1),
-                time(16, 1)
-            )
-        }
-    ]
+initialize_data()
 
 
 # ============================================================
@@ -220,66 +376,62 @@ def get_student(student_id):
     return None
 
 
-def get_user_name(user_id):
+def get_class(class_id):
 
-    tutor = get_tutor(user_id)
+    for c in st.session_state.classes:
 
-    if tutor:
-        return tutor["name"]
+        if c["id"] == class_id:
+            return c
 
-    student = get_student(user_id)
-
-    if student:
-        return student["name"]
-
-    for admin in USERS["admins"]:
-        if admin["id"] == user_id:
-            return admin["name"]
-
-    return user_id
+    return None
 
 
-def format_duration(minutes):
+def get_session(session_id):
 
-    if minutes is None:
-        return "-"
+    for session in st.session_state.sessions:
 
-    hours = int(minutes // 60)
-    mins = int(minutes % 60)
+        if session["id"] == session_id:
+            return session
 
-    if hours == 0:
-        return f"{mins} min"
+    return None
+
+
+def format_duration(seconds):
+
+    if seconds is None:
+        return "0h 0m"
+
+    minutes = int(seconds / 60)
+
+    hours = minutes // 60
+    mins = minutes % 60
 
     return f"{hours}h {mins}m"
 
 
-def session_duration(session):
+def calculate_hours(start, end):
 
-    if not session["actual_start"]:
+    if not start or not end:
         return 0
 
-    end = session["actual_end"]
-
-    if not end:
-        end = datetime.now()
-
-    return (end - session["actual_start"]).total_seconds() / 60
+    return (end - start).total_seconds() / 3600
 
 
-def generate_qr(token):
+def generate_qr(data):
 
     qr = qrcode.QRCode(
         version=1,
-        box_size=10,
+        box_size=8,
         border=4
     )
 
-    qr.add_data(token)
+    qr.add_data(data)
     qr.make(fit=True)
 
     image = qr.make_image()
 
-    buffer = BytesIO()
+    buffer = io.BytesIO()
+
     image.save(buffer, format="PNG")
 
     return buffer.getvalue()
@@ -287,37 +439,43 @@ def generate_qr(token):
 
 def logout():
 
+    st.session_state.logged_in = False
     st.session_state.user = None
     st.session_state.role = None
+
     st.rerun()
+
+
+# ============================================================
+# AUTHENTICATION
+# ============================================================
+
+def authenticate(user_id, password):
+
+    for role in ["admins", "tutors"]:
+
+        for user in USERS[role]:
+
+            if (
+                user["id"] == user_id
+                and user.get("password") == password
+            ):
+
+                return user, role[:-1]
+
+    # Students use their ID only
+    for student in USERS["students"]:
+
+        if student["id"] == user_id:
+
+            return student, "student"
+
+    return None, None
 
 
 # ============================================================
 # LOGIN
 # ============================================================
-
-def authenticate(user_id, password, role):
-
-    if role == "Admin":
-
-        for user in USERS["admins"]:
-            if user["id"] == user_id and user["password"] == password:
-                return user
-
-    elif role == "Tutor":
-
-        for user in USERS["tutors"]:
-            if user["id"] == user_id and user["password"] == password:
-                return user
-
-    elif role == "Student":
-
-        for user in USERS["students"]:
-            if user["id"] == user_id:
-                return user
-
-    return None
-
 
 def login_page():
 
@@ -328,73 +486,60 @@ def login_page():
 
     st.markdown(
         '<div class="subtitle">'
-        'Tutoring session and attendance management'
+        'Tutor effort and student attendance management'
         '</div>',
         unsafe_allow_html=True
     )
 
-    left, center, right = st.columns([1, 2, 1])
+    st.divider()
 
-    with center:
+    col1, col2, col3 = st.columns([1, 2, 1])
 
-        st.subheader("Sign in")
+    with col2:
 
-        role = st.selectbox(
-            "I am a",
-            ["Tutor", "Student", "Admin"]
-        )
+        st.subheader("Login")
 
         user_id = st.text_input(
-            "ID",
-            placeholder="Enter your ID"
+            "User ID",
+            placeholder="Example: T001 or S001"
         )
 
-        if role == "Student":
-
-            st.caption(
-                "Students do not need a password."
-            )
-
-            password = ""
-
-        else:
-
-            password = st.text_input(
-                "Password",
-                type="password"
-            )
+        password = st.text_input(
+            "Password",
+            type="password",
+            help="Students do not need a password."
+        )
 
         if st.button(
-            "Continue",
+            "Login",
             type="primary",
             use_container_width=True
         ):
 
-            user = authenticate(
+            user, role = authenticate(
                 user_id,
-                password,
-                role
+                password
             )
 
             if user:
 
+                st.session_state.logged_in = True
                 st.session_state.user = user
-                st.session_state.role = role.lower()
+                st.session_state.role = role
 
                 st.rerun()
 
             else:
 
-                st.error(
-                    "ID or password is incorrect."
-                )
+                st.error("Invalid User ID or password.")
 
-    st.divider()
-
-    st.caption(
-        "Prototype version — users are authorized "
-        "through data/users.json."
-    )
+        st.info(
+            "Demo accounts: "
+            "T001 / 1234, "
+            "T002 / 5678, "
+            "T003 / 9999. "
+            "Students can enter S001–S005 without a password."
+        )
 
 
 # ============================================================
@@ -406,61 +551,60 @@ def sidebar():
     user = st.session_state.user
     role = st.session_state.role
 
-    with st.sidebar:
+    st.sidebar.markdown("## 📚 Tutor Attendance")
 
-        st.markdown("## 📚 Tutor Attendance")
+    st.sidebar.write(
+        f"**{user['name']}**"
+    )
 
-        st.divider()
+    st.sidebar.caption(
+        role.capitalize()
+    )
 
-        st.write(
-            f"**{user['name']}**"
-        )
+    st.sidebar.divider()
 
-        st.caption(
-            role.capitalize()
-        )
+    if role == "admin":
 
-        st.divider()
+        pages = [
+            "Dashboard",
+            "Classes",
+            "Tutors",
+            "Students",
+            "Sessions",
+            "Reports"
+        ]
 
-        if role == "admin":
+    elif role == "tutor":
 
-            pages = [
-                "Dashboard",
-                "Tutors",
-                "Students",
-                "Sessions",
-                "Reports"
-            ]
+        pages = [
+            "Dashboard",
+            "Available Classes",
+            "My Commitments",
+            "My Sessions",
+            "Create Tutoring Session"
+        ]
 
-        elif role == "tutor":
+    else:
 
-            pages = [
-                "Dashboard",
-                "My Sessions",
-                "Create Session"
-            ]
+        pages = [
+            "Dashboard",
+            "Available Sessions",
+            "My Attendance"
+        ]
 
-        else:
+    page = st.sidebar.radio(
+        "Navigation",
+        pages
+    )
 
-            pages = [
-                "Dashboard",
-                "Available Sessions",
-                "My Attendance"
-            ]
+    st.sidebar.divider()
 
-        page = st.radio(
-            "Navigation",
-            pages,
-            label_visibility="collapsed"
-        )
+    if st.sidebar.button(
+        "Logout",
+        use_container_width=True
+    ):
 
-        st.divider()
-
-        if st.button(
-            "Logout",
-            use_container_width=True
-        ):
-            logout()
+        logout()
 
     return page
 
@@ -478,83 +622,319 @@ def admin_dashboard():
 
     st.markdown(
         '<div class="subtitle">'
-        'Overview of the tutoring program'
+        'Overview of tutoring and classroom support'
         '</div>',
         unsafe_allow_html=True
     )
 
     total_tutors = len(USERS["tutors"])
     total_students = len(USERS["students"])
+    total_classes = len(st.session_state.classes)
     total_sessions = len(st.session_state.sessions)
 
-    completed_hours = sum(
-        session_duration(s) / 60
-        for s in st.session_state.sessions
-        if s["status"] == "Completed"
-    )
+    total_hours = 0
 
-    c1, c2, c3, c4 = st.columns(4)
+    for session in st.session_state.sessions:
 
-    c1.metric(
-        "Tutors",
-        total_tutors
-    )
+        total_hours += calculate_hours(
+            session["actual_start"],
+            session["actual_end"]
+        )
 
-    c2.metric(
-        "Students",
-        total_students
-    )
+    for att in st.session_state.attendance:
 
-    c3.metric(
-        "Sessions",
-        total_sessions
-    )
+        if (
+            att["type"] == "Class Support"
+            and att["tutor_id"]
+        ):
 
-    c4.metric(
-        "Tutor Hours",
-        f"{completed_hours:.1f}"
-    )
+            total_hours += calculate_hours(
+                att["check_in"],
+                att["check_out"]
+            )
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    c1.metric("Tutors", total_tutors)
+    c2.metric("Students", total_students)
+    c3.metric("Classes", total_classes)
+    c4.metric("Tutoring Sessions", total_sessions)
+    c5.metric("Tutor Hours", f"{total_hours:.1f}")
 
     st.divider()
 
-    st.subheader("Recent Sessions")
+    st.subheader("Today's Classes")
 
-    display_sessions(
-        st.session_state.sessions
-    )
+    today = date.today()
+
+    todays_classes = [
+        c for c in st.session_state.classes
+        if c["date"] == today
+    ]
+
+    if not todays_classes:
+
+        st.info("No classes scheduled today.")
+
+    for c in todays_classes:
+
+        signups = [
+            s for s in st.session_state.class_signups
+            if s["class_id"] == c["id"]
+        ]
+
+        st.markdown(
+            f"""
+            <div class="session-card">
+                <strong>{c['course']}</strong><br>
+                {c['title']}<br>
+                📅 {c['date']} |
+                🕐 {c['start'].strftime('%H:%M')} -
+                {c['end'].strftime('%H:%M')} |
+                📍 {c['room']}<br>
+                👨‍🏫 Tutors signed up:
+                {len(signups)} / {c['max_tutors']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 
 # ============================================================
-# ADMIN — TUTORS
+# ADMIN CLASSES
+# ============================================================
+
+def admin_classes():
+
+    st.markdown(
+        '<div class="main-title">Class Schedule</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitle">'
+        'Post classes that tutors can support'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    with st.expander(
+        "➕ Add a Class",
+        expanded=False
+    ):
+
+        course = st.text_input(
+            "Course",
+            placeholder="420-N34-Java Web Programming"
+        )
+
+        title = st.text_input(
+            "Class / Topic",
+            placeholder="Spring Boot / REST"
+        )
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            class_date = st.date_input(
+                "Date",
+                value=date.today()
+            )
+
+        with c2:
+
+            room = st.text_input(
+                "Room",
+                placeholder="B201"
+            )
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+
+            start_time = st.time_input(
+                "Start time",
+                value=time(10, 0)
+            )
+
+        with c2:
+
+            end_time = st.time_input(
+                "End time",
+                value=time(12, 0)
+            )
+
+        with c3:
+
+            max_tutors = st.number_input(
+                "Maximum tutors",
+                min_value=1,
+                max_value=10,
+                value=2
+            )
+
+        if st.button(
+            "Post Class",
+            type="primary"
+        ):
+
+            if not course or not title or not room:
+
+                st.error(
+                    "Please complete all fields."
+                )
+
+            else:
+
+                new_id = (
+                    "CLS"
+                    + str(len(st.session_state.classes) + 1)
+                )
+
+                token = (
+                    "CLASS-"
+                    + uuid.uuid4().hex[:8]
+                )
+
+                new_class = {
+
+                    "id": new_id,
+                    "course": course,
+                    "title": title,
+                    "date": class_date,
+                    "start": datetime.combine(
+                        class_date,
+                        start_time
+                    ),
+                    "end": datetime.combine(
+                        class_date,
+                        end_time
+                    ),
+                    "room": room,
+                    "max_tutors": int(max_tutors),
+                    "status": "Open",
+                    "qr_token": token
+                }
+
+                st.session_state.classes.append(
+                    new_class
+                )
+
+                st.success(
+                    "Class posted successfully."
+                )
+
+                st.rerun()
+
+    st.divider()
+
+    for c in sorted(
+        st.session_state.classes,
+        key=lambda x: x["start"]
+    ):
+
+        signups = [
+            s for s in st.session_state.class_signups
+            if s["class_id"] == c["id"]
+        ]
+
+        with st.container(border=True):
+
+            st.subheader(
+                f"{c['course']} — {c['title']}"
+            )
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            c1.write(
+                f"📅 **{c['date']}**"
+            )
+
+            c2.write(
+                f"🕐 **{c['start'].strftime('%H:%M')} - "
+                f"{c['end'].strftime('%H:%M')}**"
+            )
+
+            c3.write(
+                f"📍 **{c['room']}**"
+            )
+
+            c4.write(
+                f"👨‍🏫 **{len(signups)} / "
+                f"{c['max_tutors']} tutors**"
+            )
+
+            if signups:
+
+                names = []
+
+                for signup in signups:
+
+                    tutor = get_tutor(
+                        signup["tutor_id"]
+                    )
+
+                    if tutor:
+                        names.append(
+                            tutor["name"]
+                        )
+
+                st.write(
+                    "Signed up: "
+                    + ", ".join(names)
+                )
+
+            else:
+
+                st.caption(
+                    "No tutors have signed up."
+                )
+
+
+# ============================================================
+# ADMIN TUTORS
 # ============================================================
 
 def admin_tutors():
 
-    st.title("Tutors")
-
-    st.write(
-        f"{len(USERS['tutors'])} tutors registered"
+    st.markdown(
+        '<div class="main-title">Tutors</div>',
+        unsafe_allow_html=True
     )
 
     rows = []
 
     for tutor in USERS["tutors"]:
 
-        sessions = [
-            s for s in st.session_state.sessions
-            if s["tutor_id"] == tutor["id"]
-        ]
+        hours = 0
 
-        hours = sum(
-            session_duration(s) / 60
-            for s in sessions
-            if s["status"] == "Completed"
-        )
+        # Individual tutoring
+        for session in st.session_state.sessions:
+
+            if session["tutor_id"] == tutor["id"]:
+
+                hours += calculate_hours(
+                    session["actual_start"],
+                    session["actual_end"]
+                )
+
+        # Classroom support
+        for attendance in st.session_state.attendance:
+
+            if (
+                attendance["tutor_id"] == tutor["id"]
+                and attendance["type"] == "Class Support"
+            ):
+
+                hours += calculate_hours(
+                    attendance["check_in"],
+                    attendance["check_out"]
+                )
 
         rows.append({
-            "ID": tutor["id"],
-            "Tutor": tutor["name"],
-            "Sessions": len(sessions),
+            "Tutor ID": tutor["id"],
+            "Name": tutor["name"],
             "Hours": round(hours, 2)
         })
 
@@ -564,45 +944,25 @@ def admin_tutors():
         hide_index=True
     )
 
-    st.info(
-        "Tutor management will be connected to "
-        "Google Sheets in the next phase."
-    )
-
 
 # ============================================================
-# ADMIN — STUDENTS
+# ADMIN STUDENTS
 # ============================================================
 
 def admin_students():
 
-    st.title("Students")
+    st.markdown(
+        '<div class="main-title">Students</div>',
+        unsafe_allow_html=True
+    )
 
     rows = []
 
     for student in USERS["students"]:
 
-        attendance = [
-            a for a in st.session_state.attendance
-            if a["student_id"] == student["id"]
-        ]
-
-        minutes = 0
-
-        for a in attendance:
-
-            if a["check_in"] and a["check_out"]:
-
-                minutes += (
-                    a["check_out"] -
-                    a["check_in"]
-                ).total_seconds() / 60
-
         rows.append({
-            "ID": student["id"],
-            "Student": student["name"],
-            "Sessions": len(attendance),
-            "Hours": round(minutes / 60, 2)
+            "Student ID": student["id"],
+            "Name": student["name"]
         })
 
     st.dataframe(
@@ -613,97 +973,187 @@ def admin_students():
 
 
 # ============================================================
-# ADMIN — SESSIONS
+# ADMIN SESSIONS
 # ============================================================
 
 def admin_sessions():
 
-    st.title("All Sessions")
-
-    display_sessions(
-        st.session_state.sessions
+    st.markdown(
+        '<div class="main-title">Sessions</div>',
+        unsafe_allow_html=True
     )
 
+    rows = []
 
-# ============================================================
-# SESSION DISPLAY
-# ============================================================
-
-def display_sessions(sessions):
-
-    if not sessions:
-
-        st.info("No sessions found.")
-        return
-
-    for session in sessions:
+    for session in st.session_state.sessions:
 
         tutor = get_tutor(
             session["tutor_id"]
         )
 
-        student_names = [
-            get_student(s)["name"]
-            for s in session["student_ids"]
-        ]
+        student_names = []
 
-        with st.container(border=True):
+        for sid in session["student_ids"]:
 
-            c1, c2, c3, c4 = st.columns(
-                [2, 2, 2, 1]
-            )
+            student = get_student(sid)
 
-            c1.write(
-                f"**{session['id']}**"
-            )
-
-            c1.caption(
-                tutor["name"]
-            )
-
-            c2.write(
-                session["date"].strftime("%b %d, %Y")
-            )
-
-            c2.caption(
-                session["start_time"].strftime("%I:%M %p")
-            )
-
-            c3.write(
-                ", ".join(student_names)
-            )
-
-            c3.caption(
-                f"Expected: "
-                f"{format_duration(session['expected_minutes'])}"
-            )
-
-            if session["status"] == "Active":
-
-                c4.markdown(
-                    '<span class="status-active">'
-                    '● ACTIVE'
-                    '</span>',
-                    unsafe_allow_html=True
+            if student:
+                student_names.append(
+                    student["name"]
                 )
 
-            elif session["status"] == "Completed":
+        hours = calculate_hours(
+            session["actual_start"],
+            session["actual_end"]
+        )
 
-                c4.markdown(
-                    '<span class="status-completed">'
-                    '● COMPLETED'
-                    '</span>',
-                    unsafe_allow_html=True
+        rows.append({
+
+            "ID": session["id"],
+            "Type": session["type"],
+            "Tutor": tutor["name"] if tutor else "",
+            "Students": ", ".join(student_names),
+            "Date": session["date"],
+            "Status": session["status"],
+            "Hours": round(hours, 2)
+
+        })
+
+    st.dataframe(
+        pd.DataFrame(rows),
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# ============================================================
+# ADMIN REPORTS
+# ============================================================
+
+def admin_reports():
+
+    st.markdown(
+        '<div class="main-title">Reports</div>',
+        unsafe_allow_html=True
+    )
+
+    st.subheader("Tutor Hours")
+
+    rows = []
+
+    for tutor in USERS["tutors"]:
+
+        tutoring_hours = 0
+        class_hours = 0
+
+        for session in st.session_state.sessions:
+
+            if session["tutor_id"] == tutor["id"]:
+
+                tutoring_hours += calculate_hours(
+                    session["actual_start"],
+                    session["actual_end"]
                 )
 
-            else:
+        for attendance in st.session_state.attendance:
 
-                c4.markdown(
-                    '<span class="status-scheduled">'
-                    '● SCHEDULED'
-                    '</span>',
-                    unsafe_allow_html=True
+            if (
+                attendance["tutor_id"] == tutor["id"]
+                and attendance["type"] == "Class Support"
+            ):
+
+                class_hours += calculate_hours(
+                    attendance["check_in"],
+                    attendance["check_out"]
                 )
+
+        rows.append({
+
+            "Tutor ID": tutor["id"],
+            "Tutor": tutor["name"],
+            "Tutoring Hours": round(
+                tutoring_hours,
+                2
+            ),
+            "Class Support Hours": round(
+                class_hours,
+                2
+            ),
+            "Total Hours": round(
+                tutoring_hours + class_hours,
+                2
+            )
+
+        })
+
+    df = pd.DataFrame(rows)
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    csv = df.to_csv(index=False)
+
+    st.download_button(
+        "Download CSV",
+        csv,
+        "tutor_hours.csv",
+        "text/csv"
+    )
+
+    st.divider()
+
+    st.subheader(
+        "Classroom Support Attendance"
+    )
+
+    class_rows = []
+
+    for attendance in st.session_state.attendance:
+
+        if attendance["type"] != "Class Support":
+            continue
+
+        tutor = get_tutor(
+            attendance["tutor_id"]
+        )
+
+        c = get_class(
+            attendance["class_id"]
+        )
+
+        hours = calculate_hours(
+            attendance["check_in"],
+            attendance["check_out"]
+        )
+
+        class_rows.append({
+
+            "Tutor": tutor["name"] if tutor else "",
+            "Course": c["course"] if c else "",
+            "Class": c["title"] if c else "",
+            "Date": c["date"] if c else "",
+            "Check In": attendance["check_in"],
+            "Check Out": attendance["check_out"],
+            "Hours": round(hours, 2)
+
+        })
+
+    if class_rows:
+
+        st.dataframe(
+            pd.DataFrame(class_rows),
+            use_container_width=True,
+            hide_index=True
+        )
+
+    else:
+
+        st.info(
+            "No classroom-support attendance yet."
+        )
 
 
 # ============================================================
@@ -712,259 +1162,662 @@ def display_sessions(sessions):
 
 def tutor_dashboard():
 
-    tutor = st.session_state.user
+    tutor_id = st.session_state.user["id"]
 
-    st.title(
-        f"Welcome, {tutor['name']}"
+    st.markdown(
+        '<div class="main-title">Tutor Dashboard</div>',
+        unsafe_allow_html=True
     )
 
-    tutor_sessions = [
+    st.markdown(
+        '<div class="subtitle">'
+        'Your tutoring and classroom-support activity'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    tutoring_hours = 0
+    class_hours = 0
+
+    for session in st.session_state.sessions:
+
+        if session["tutor_id"] == tutor_id:
+
+            tutoring_hours += calculate_hours(
+                session["actual_start"],
+                session["actual_end"]
+            )
+
+    for attendance in st.session_state.attendance:
+
+        if (
+            attendance["tutor_id"] == tutor_id
+            and attendance["type"] == "Class Support"
+        ):
+
+            class_hours += calculate_hours(
+                attendance["check_in"],
+                attendance["check_out"]
+            )
+
+    total_hours = tutoring_hours + class_hours
+
+    signups = [
+        s for s in st.session_state.class_signups
+        if s["tutor_id"] == tutor_id
+    ]
+
+    active_sessions = [
         s for s in st.session_state.sessions
-        if s["tutor_id"] == tutor["id"]
+        if (
+            s["tutor_id"] == tutor_id
+            and s["status"] == "Active"
+        )
     ]
 
-    active = [
-        s for s in tutor_sessions
-        if s["status"] == "Active"
-    ]
-
-    completed = [
-        s for s in tutor_sessions
-        if s["status"] == "Completed"
-    ]
-
-    hours = sum(
-        session_duration(s) / 60
-        for s in completed
-    )
-
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
 
     c1.metric(
-        "My Sessions",
-        len(tutor_sessions)
+        "Total Hours",
+        f"{total_hours:.1f}"
     )
 
     c2.metric(
-        "Active",
-        len(active)
+        "Tutoring",
+        f"{tutoring_hours:.1f} h"
     )
 
     c3.metric(
-        "Completed Hours",
-        f"{hours:.1f}"
+        "Class Support",
+        f"{class_hours:.1f} h"
+    )
+
+    c4.metric(
+        "Class Commitments",
+        len(signups)
     )
 
     st.divider()
 
-    st.subheader("Today's Sessions")
+    if active_sessions:
 
-    today_sessions = [
-        s for s in tutor_sessions
-        if s["date"] == date.today()
-    ]
-
-    display_sessions(today_sessions)
-
-
-# ============================================================
-# TUTOR — MY SESSIONS
-# ============================================================
-
-def tutor_sessions_page():
-
-    tutor = st.session_state.user
-
-    st.title("My Sessions")
-
-    sessions = [
-        s for s in st.session_state.sessions
-        if s["tutor_id"] == tutor["id"]
-    ]
-
-    display_sessions(sessions)
-
-    st.divider()
-
-    st.subheader("Manage Session")
-
-    if sessions:
-
-        selected = st.selectbox(
-            "Select session",
-            sessions,
-            format_func=lambda s:
-                f"{s['id']} — "
-                f"{s['date']} — "
-                f"{s['start_time'].strftime('%I:%M %p')}"
+        st.subheader(
+            "Active Tutoring Session"
         )
 
-        if selected["status"] == "Scheduled":
+        for session in active_sessions:
 
-            if st.button(
-                "▶ Start Session",
-                type="primary"
-            ):
-
-                selected["status"] = "Active"
-                selected["actual_start"] = datetime.now()
-                selected["qr_token"] = (
-                    selected["id"] + "-" +
-                    uuid.uuid4().hex[:10]
-                )
-
-                st.success(
-                    "Session started."
-                )
-
-                st.rerun()
-
-        elif selected["status"] == "Active":
-
-            st.success(
-                "This session is currently active."
+            st.info(
+                f"{session['title']} — "
+                f"{session['scheduled_start'].strftime('%H:%M')}"
             )
 
-            token = selected["qr_token"]
+    st.subheader(
+        "Upcoming Commitments"
+    )
+
+    upcoming = []
+
+    for signup in signups:
+
+        c = get_class(
+            signup["class_id"]
+        )
+
+        if c and c["start"] >= datetime.now():
+
+            upcoming.append(c)
+
+    if not upcoming:
+
+        st.info(
+            "You have no upcoming classroom-support commitments."
+        )
+
+    for c in upcoming:
+
+        st.markdown(
+            f"""
+            <div class="session-card">
+                <strong>{c['course']}</strong><br>
+                {c['title']}<br>
+                📅 {c['date']} |
+                🕐 {c['start'].strftime('%H:%M')} -
+                {c['end'].strftime('%H:%M')} |
+                📍 {c['room']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+# ============================================================
+# AVAILABLE CLASSES
+# ============================================================
+
+def tutor_available_classes():
+
+    tutor_id = st.session_state.user["id"]
+
+    st.markdown(
+        '<div class="main-title">Available Classes</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitle">'
+        'Choose classes where you can provide student support'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    for c in sorted(
+        st.session_state.classes,
+        key=lambda x: x["start"]
+    ):
+
+        signups = [
+            s for s in st.session_state.class_signups
+            if s["class_id"] == c["id"]
+        ]
+
+        already_signed = any(
+            s["tutor_id"] == tutor_id
+            for s in signups
+        )
+
+        available = (
+            len(signups) < c["max_tutors"]
+        )
+
+        with st.container(border=True):
 
             st.subheader(
-                "Student Attendance QR Code"
+                f"{c['course']} — {c['title']}"
+            )
+
+            c1, c2, c3 = st.columns(3)
+
+            c1.write(
+                f"📅 {c['date']}"
+            )
+
+            c2.write(
+                f"🕐 {c['start'].strftime('%H:%M')} - "
+                f"{c['end'].strftime('%H:%M')}"
+            )
+
+            c3.write(
+                f"📍 {c['room']}"
             )
 
             st.write(
-                "Ask the student to scan this QR code."
+                f"Tutors: {len(signups)} / {c['max_tutors']}"
             )
 
-            qr_image = generate_qr(token)
-
-            left, center, right = st.columns(
-                [1, 2, 1]
-            )
-
-            with center:
-
-                st.markdown(
-                    '<div class="qr-box">',
-                    unsafe_allow_html=True
-                )
-
-                st.image(
-                    qr_image,
-                    width=300
-                )
-
-                st.caption(
-                    f"Session code: {token}"
-                )
-
-                st.markdown(
-                    '</div>',
-                    unsafe_allow_html=True
-                )
-
-            if st.button(
-                "■ End Session",
-                type="primary"
-            ):
-
-                selected["status"] = "Completed"
-                selected["actual_end"] = datetime.now()
+            if already_signed:
 
                 st.success(
-                    "Session completed."
+                    "You are signed up for this class."
                 )
 
-                st.rerun()
+            elif not available:
+
+                st.warning(
+                    "This class is full."
+                )
+
+            elif c["start"] < datetime.now():
+
+                st.info(
+                    "This class has already started."
+                )
+
+            else:
+
+                if st.button(
+                    "Sign Up",
+                    key=f"signup_{c['id']}"
+                ):
+
+                    st.session_state.class_signups.append({
+
+                        "class_id": c["id"],
+                        "tutor_id": tutor_id,
+                        "signup_time": datetime.now()
+
+                    })
+
+                    st.success(
+                        "You have signed up."
+                    )
+
+                    st.rerun()
+
+
+# ============================================================
+# MY COMMITMENTS
+# ============================================================
+
+def tutor_commitments():
+
+    tutor_id = st.session_state.user["id"]
+
+    st.markdown(
+        '<div class="main-title">My Commitments</div>',
+        unsafe_allow_html=True
+    )
+
+    my_signups = [
+
+        s for s in st.session_state.class_signups
+
+        if s["tutor_id"] == tutor_id
+
+    ]
+
+    if not my_signups:
+
+        st.info(
+            "You have no classroom-support commitments."
+        )
+
+        return
+
+    for signup in my_signups:
+
+        c = get_class(
+            signup["class_id"]
+        )
+
+        if not c:
+            continue
+
+        with st.container(border=True):
+
+            st.subheader(
+                f"{c['course']} — {c['title']}"
+            )
+
+            st.write(
+                f"📅 {c['date']}"
+            )
+
+            st.write(
+                f"🕐 {c['start'].strftime('%H:%M')} - "
+                f"{c['end'].strftime('%H:%M')}"
+            )
+
+            st.write(
+                f"📍 {c['room']}"
+            )
+
+            # Find attendance
+            attendance = None
+
+            for a in st.session_state.attendance:
+
+                if (
+                    a["class_id"] == c["id"]
+                    and a["tutor_id"] == tutor_id
+                ):
+
+                    attendance = a
+                    break
+
+            if attendance:
+
+                if attendance["check_out"]:
+
+                    hours = calculate_hours(
+                        attendance["check_in"],
+                        attendance["check_out"]
+                    )
+
+                    st.success(
+                        f"Completed — {hours:.2f} hours"
+                    )
+
+                else:
+
+                    st.warning(
+                        "You are currently checked in."
+                    )
+
+                    if st.button(
+                        "Check Out",
+                        key=f"class_checkout_{c['id']}"
+                    ):
+
+                        attendance["check_out"] = datetime.now()
+
+                        st.success(
+                            "Classroom attendance recorded."
+                        )
+
+                        st.rerun()
+
+            else:
+
+                if (
+                    datetime.now() >= c["start"]
+                    and datetime.now() <= c["end"] + timedelta(hours=1)
+                ):
+
+                    st.info(
+                        "The class is currently available "
+                        "for attendance."
+                    )
+
+                    if st.button(
+                        "Check In",
+                        key=f"class_checkin_{c['id']}",
+                        type="primary"
+                    ):
+
+                        st.session_state.attendance.append({
+
+                            "id": "ATT"
+                            + uuid.uuid4().hex[:8],
+
+                            "type": "Class Support",
+
+                            "session_id": None,
+
+                            "class_id": c["id"],
+
+                            "student_id": None,
+
+                            "tutor_id": tutor_id,
+
+                            "check_in": datetime.now(),
+
+                            "check_out": None,
+
+                            "status": "Present"
+
+                        })
+
+                        st.success(
+                            "You are checked in."
+                        )
+
+                        st.rerun()
+
+                else:
+
+                    st.info(
+                        "Check-in will become available "
+                        "when the class starts."
+                    )
+
+
+# ============================================================
+# TUTOR MY SESSIONS
+# ============================================================
+
+def tutor_sessions():
+
+    tutor_id = st.session_state.user["id"]
+
+    st.markdown(
+        '<div class="main-title">My Tutoring Sessions</div>',
+        unsafe_allow_html=True
+    )
+
+    my_sessions = [
+
+        s for s in st.session_state.sessions
+
+        if s["tutor_id"] == tutor_id
+
+    ]
+
+    for session in my_sessions:
+
+        with st.container(border=True):
+
+            st.subheader(
+                session["title"]
+            )
+
+            st.write(
+                f"📅 {session['date']}"
+            )
+
+            st.write(
+                f"🕐 "
+                f"{session['scheduled_start'].strftime('%H:%M')} - "
+                f"{session['scheduled_end'].strftime('%H:%M')}"
+            )
+
+            students = []
+
+            for sid in session["student_ids"]:
+
+                student = get_student(sid)
+
+                if student:
+                    students.append(
+                        student["name"]
+                    )
+
+            st.write(
+                "Students: "
+                + ", ".join(students)
+            )
+
+            if session["status"] == "Scheduled":
+
+                if st.button(
+                    "Start Session",
+                    key=f"start_{session['id']}"
+                ):
+
+                    session["status"] = "Active"
+                    session["actual_start"] = datetime.now()
+                    session["qr_token"] = (
+                        "SESSION-"
+                        + uuid.uuid4().hex
+                    )
+
+                    st.rerun()
+
+            elif session["status"] == "Active":
+
+                st.success(
+                    "Session is active."
+                )
+
+                st.subheader(
+                    "Student Attendance QR Code"
+                )
+
+                qr_data = (
+                    "http://localhost:8501/"
+                    "?session="
+                    + session["id"]
+                    + "&token="
+                    + session["qr_token"]
+                )
+
+                image = generate_qr(
+                    qr_data
+                )
+
+                col1, col2, col3 = st.columns(
+                    [1, 2, 1]
+                )
+
+                with col2:
+
+                    st.image(
+                        image,
+                        width=300
+                    )
+
+                    st.caption(
+                        "Students scan this QR code "
+                        "to confirm attendance."
+                    )
+
+                if st.button(
+                    "End Session",
+                    key=f"end_{session['id']}"
+                ):
+
+                    session["status"] = "Completed"
+                    session["actual_end"] = datetime.now()
+
+                    st.success(
+                        "Session completed."
+                    )
+
+                    st.rerun()
+
+            else:
+
+                hours = calculate_hours(
+                    session["actual_start"],
+                    session["actual_end"]
+                )
+
+                st.info(
+                    f"Completed — {hours:.2f} hours"
+                )
+
+
+# ============================================================
+# CREATE TUTORING SESSION
+# ============================================================
+
+def create_tutoring_session():
+
+    tutor_id = st.session_state.user["id"]
+
+    st.markdown(
+        '<div class="main-title">'
+        'Create Tutoring Session'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitle">'
+        'Create an individual or small-group tutoring session'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    title = st.text_input(
+        "Session title",
+        placeholder="Java Help"
+    )
+
+    students = st.multiselect(
+
+        "Students",
+
+        options=[
+            s["id"]
+            for s in USERS["students"]
+        ],
+
+        format_func=lambda sid:
+            f"{sid} — {get_student(sid)['name']}"
+
+    )
+
+    session_date = st.date_input(
+        "Date",
+        value=date.today()
+    )
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        start = st.time_input(
+            "Start",
+            value=time(14, 0)
+        )
+
+    with c2:
+
+        end = st.time_input(
+            "End",
+            value=time(15, 0)
+        )
+
+    if st.button(
+        "Create Session",
+        type="primary"
+    ):
+
+        if not title:
+
+            st.error(
+                "Enter a session title."
+            )
+
+        elif not students:
+
+            st.error(
+                "Select at least one student."
+            )
+
+        elif end <= start:
+
+            st.error(
+                "End time must be after start time."
+            )
 
         else:
 
-            minutes = session_duration(
-                selected
+            new_id = (
+                "SES"
+                + uuid.uuid4().hex[:6].upper()
             )
 
-            st.info(
-                f"Session completed. "
-                f"Actual duration: "
-                f"**{format_duration(minutes)}**"
+            st.session_state.sessions.append({
+
+                "id": new_id,
+
+                "type": "Individual Tutoring",
+
+                "tutor_id": tutor_id,
+
+                "student_ids": students,
+
+                "title": title,
+
+                "date": session_date,
+
+                "scheduled_start":
+                    datetime.combine(
+                        session_date,
+                        start
+                    ),
+
+                "scheduled_end":
+                    datetime.combine(
+                        session_date,
+                        end
+                    ),
+
+                "actual_start": None,
+
+                "actual_end": None,
+
+                "status": "Scheduled",
+
+                "qr_token": None
+
+            })
+
+            st.success(
+                "Tutoring session created."
             )
-
-
-# ============================================================
-# TUTOR — CREATE SESSION
-# ============================================================
-
-def create_session_page():
-
-    tutor = st.session_state.user
-
-    st.title("Create Tutoring Session")
-
-    with st.form("create_session"):
-
-        session_date = st.date_input(
-            "Date",
-            value=date.today()
-        )
-
-        session_time = st.time_input(
-            "Start time",
-            value=time(16, 0)
-        )
-
-        duration = st.selectbox(
-            "Expected duration",
-            [30, 45, 60, 90, 120],
-            format_func=lambda x:
-                format_duration(x)
-        )
-
-        student_options = {
-            student["id"]: student["name"]
-            for student in USERS["students"]
-        }
-
-        selected_students = st.multiselect(
-            "Students",
-            options=list(student_options.keys()),
-            format_func=lambda x:
-                f"{x} — {student_options[x]}"
-        )
-
-        submitted = st.form_submit_button(
-            "Create Session",
-            type="primary"
-        )
-
-    if submitted:
-
-        if not selected_students:
-
-            st.error(
-                "Please select at least one student."
-            )
-
-            return
-
-        new_session = {
-            "id": "SES" + uuid.uuid4().hex[:6].upper(),
-            "tutor_id": tutor["id"],
-            "student_ids": selected_students,
-            "date": session_date,
-            "start_time": session_time,
-            "expected_minutes": duration,
-            "status": "Scheduled",
-            "actual_start": None,
-            "actual_end": None,
-            "qr_token": None
-        }
-
-        st.session_state.sessions.append(
-            new_session
-        )
-
-        st.success(
-            f"Session {new_session['id']} created."
-        )
 
 
 # ============================================================
@@ -973,111 +1826,111 @@ def create_session_page():
 
 def student_dashboard():
 
-    student = st.session_state.user
+    student_id = st.session_state.user["id"]
 
-    st.title(
-        f"Welcome, {student['name']}"
+    st.markdown(
+        '<div class="main-title">Student Dashboard</div>',
+        unsafe_allow_html=True
     )
 
-    my_attendance = [
-        a for a in st.session_state.attendance
-        if a["student_id"] == student["id"]
+    my_sessions = [
+
+        s for s in st.session_state.sessions
+
+        if student_id in s["student_ids"]
+
     ]
 
-    completed = 0
+    attendance_count = len([
 
-    for a in my_attendance:
+        a for a in st.session_state.attendance
 
-        if a["check_in"] and a["check_out"]:
+        if a["student_id"] == student_id
 
-            completed += (
-                a["check_out"] -
-                a["check_in"]
-            ).total_seconds() / 3600
+    ])
 
-    c1, c2 = st.columns(2)
+    active = len([
+
+        s for s in my_sessions
+
+        if s["status"] == "Active"
+
+    ])
+
+    c1, c2, c3 = st.columns(3)
 
     c1.metric(
         "My Sessions",
-        len(my_attendance)
+        len(my_sessions)
     )
 
     c2.metric(
-        "Hours Attended",
-        f"{completed:.1f}"
+        "Active Sessions",
+        active
+    )
+
+    c3.metric(
+        "Attendance Records",
+        attendance_count
     )
 
     st.divider()
 
-    st.subheader("Today's Available Sessions")
+    st.subheader(
+        "Upcoming Sessions"
+    )
 
-    available = [
-        s for s in st.session_state.sessions
-        if (
-            student["id"] in s["student_ids"]
-            and s["date"] == date.today()
-            and s["status"] == "Active"
-        )
-    ]
+    for session in my_sessions:
 
-    if not available:
+        if session["status"] in [
+            "Scheduled",
+            "Active"
+        ]:
 
-        st.info(
-            "There are currently no active sessions "
-            "available for you."
-        )
-
-    else:
-
-        for session in available:
-
-            tutor = get_tutor(
-                session["tutor_id"]
-            )
-
-            st.container(border=True).write(
-                f"**{tutor['name']}** — "
-                f"{session['start_time'].strftime('%I:%M %p')} "
-                f"— {session['id']}"
+            st.markdown(
+                f"""
+                <div class="session-card">
+                    <strong>{session['title']}</strong><br>
+                    Tutor:
+                    {get_tutor(session['tutor_id'])['name']}<br>
+                    📅 {session['date']} |
+                    🕐 {session['scheduled_start'].strftime('%H:%M')} -
+                    {session['scheduled_end'].strftime('%H:%M')}<br>
+                    Status: {session['status']}
+                </div>
+                """,
+                unsafe_allow_html=True
             )
 
 
 # ============================================================
-# STUDENT — AVAILABLE SESSIONS
+# STUDENT AVAILABLE SESSIONS
 # ============================================================
 
-def available_sessions_page():
+def student_available_sessions():
 
-    student = st.session_state.user
+    student_id = st.session_state.user["id"]
 
-    st.title("Available Sessions")
-
-    st.write(
-        "These are the sessions currently available "
-        "for your student ID."
+    st.markdown(
+        '<div class="main-title">Available Sessions</div>',
+        unsafe_allow_html=True
     )
 
     sessions = [
+
         s for s in st.session_state.sessions
+
         if (
-            student["id"] in s["student_ids"]
+            student_id in s["student_ids"]
             and s["status"] == "Active"
         )
+
     ]
 
     if not sessions:
 
         st.info(
-            "No active sessions are currently available."
-        )
-
-        st.divider()
-
-        st.subheader("Demo QR Attendance")
-
-        st.write(
-            "For testing, use the QR code displayed "
-            "by a tutor during an active session."
+            "You have no active tutoring sessions."
         )
 
         return
@@ -1088,119 +1941,121 @@ def available_sessions_page():
             session["tutor_id"]
         )
 
-        with st.container(border=True):
+        st.markdown(
+            f"""
+            <div class="session-card">
+                <strong>{session['title']}</strong><br>
+                Tutor: {tutor['name']}<br>
+                Session ID: {session['id']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            st.write(
-                f"### {tutor['name']}"
+        already_present = any(
+
+            a["session_id"] == session["id"]
+            and a["student_id"] == student_id
+
+            for a in st.session_state.attendance
+
+        )
+
+        if already_present:
+
+            st.success(
+                "✓ Your attendance has been recorded."
             )
 
-            st.write(
-                f"Session: **{session['id']}**"
-            )
-
-            st.write(
-                f"Started: "
-                f"{session['actual_start'].strftime('%I:%M %p')}"
-            )
+        else:
 
             if st.button(
                 "Confirm Attendance",
-                key=f"attend_{session['id']}",
-                type="primary"
+                key=f"attend_{session['id']}"
             ):
 
-                existing = [
-                    a for a in st.session_state.attendance
-                    if (
-                        a["session_id"] == session["id"]
-                        and a["student_id"] == student["id"]
-                    )
-                ]
+                st.session_state.attendance.append({
 
-                if existing:
+                    "id":
+                        "ATT"
+                        + uuid.uuid4().hex[:8],
 
-                    st.warning(
-                        "You have already checked in."
-                    )
+                    "type":
+                        "Tutoring",
 
-                else:
+                    "session_id":
+                        session["id"],
 
-                    attendance = {
-                        "id": "ATT" +
-                        uuid.uuid4().hex[:6].upper(),
-                        "session_id": session["id"],
-                        "student_id": student["id"],
-                        "check_in": datetime.now(),
-                        "check_out": None
-                    }
+                    "class_id":
+                        None,
 
-                    st.session_state.attendance.append(
-                        attendance
-                    )
+                    "student_id":
+                        student_id,
 
-                    st.success(
-                        "Attendance confirmed!"
-                    )
+                    "tutor_id":
+                        session["tutor_id"],
+
+                    "check_in":
+                        datetime.now(),
+
+                    "check_out":
+                        None,
+
+                    "status":
+                        "Present"
+
+                })
+
+                st.success(
+                    "Attendance confirmed."
+                )
+
+                st.rerun()
 
 
 # ============================================================
-# STUDENT — MY ATTENDANCE
+# STUDENT ATTENDANCE
 # ============================================================
 
-def student_attendance_page():
+def student_attendance():
 
-    student = st.session_state.user
+    student_id = st.session_state.user["id"]
 
-    st.title("My Attendance")
+    st.markdown(
+        '<div class="main-title">My Attendance</div>',
+        unsafe_allow_html=True
+    )
 
     records = [
+
         a for a in st.session_state.attendance
-        if a["student_id"] == student["id"]
+
+        if a["student_id"] == student_id
+
     ]
 
     rows = []
 
-    for record in records:
+    for a in records:
 
-        session = next(
-            (
-                s for s in st.session_state.sessions
-                if s["id"] == record["session_id"]
-            ),
-            None
+        session = get_session(
+            a["session_id"]
         )
-
-        if not session:
-            continue
-
-        tutor = get_tutor(
-            session["tutor_id"]
-        )
-
-        if record["check_out"]:
-
-            minutes = (
-                record["check_out"] -
-                record["check_in"]
-            ).total_seconds() / 60
-
-        else:
-
-            minutes = None
 
         rows.append({
-            "Date": session["date"],
-            "Tutor": tutor["name"],
-            "Check-in": record["check_in"].strftime(
-                "%Y-%m-%d %H:%M"
-            ),
-            "Check-out":
-                record["check_out"].strftime(
-                    "%Y-%m-%d %H:%M"
-                )
-                if record["check_out"]
-                else "Still attending",
-            "Duration": format_duration(minutes)
+
+            "Type": a["type"],
+
+            "Session":
+                session["title"]
+                if session else "",
+
+            "Check In":
+                a["check_in"],
+
+            "Status":
+                a["status"]
+
         })
 
     if rows:
@@ -1219,121 +2074,32 @@ def student_attendance_page():
 
 
 # ============================================================
-# REPORTS
-# ============================================================
-
-def reports_page():
-
-    st.title("Reports")
-
-    st.subheader("Tutor Hours")
-
-    rows = []
-
-    for tutor in USERS["tutors"]:
-
-        sessions = [
-            s for s in st.session_state.sessions
-            if (
-                s["tutor_id"] == tutor["id"]
-                and s["status"] == "Completed"
-            )
-        ]
-
-        hours = sum(
-            session_duration(s) / 60
-            for s in sessions
-        )
-
-        rows.append({
-            "Tutor ID": tutor["id"],
-            "Tutor": tutor["name"],
-            "Sessions": len(sessions),
-            "Hours": round(hours, 2)
-        })
-
-    df = pd.DataFrame(rows)
-
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.divider()
-
-    st.subheader("Detailed Sessions")
-
-    detailed = []
-
-    for session in st.session_state.sessions:
-
-        tutor = get_tutor(
-            session["tutor_id"]
-        )
-
-        detailed.append({
-            "Session": session["id"],
-            "Date": session["date"],
-            "Tutor": tutor["name"],
-            "Students": ", ".join(
-                get_student(s)["name"]
-                for s in session["student_ids"]
-            ),
-            "Status": session["status"],
-            "Hours": round(
-                session_duration(session) / 60,
-                2
-            )
-        })
-
-    detailed_df = pd.DataFrame(detailed)
-
-    st.dataframe(
-        detailed_df,
-        use_container_width=True,
-        hide_index=True
-    )
-
-    csv = detailed_df.to_csv(
-        index=False
-    ).encode("utf-8")
-
-    st.download_button(
-        "⬇ Download CSV",
-        csv,
-        "tutor_sessions.csv",
-        "text/csv"
-    )
-
-
-# ============================================================
 # MAIN APPLICATION
 # ============================================================
 
-if "user" not in st.session_state:
-    st.session_state.user = None
+def main():
 
-if "role" not in st.session_state:
-    st.session_state.role = None
+    if not st.session_state.logged_in:
 
+        login_page()
 
-if st.session_state.user is None:
-
-    login_page()
-
-else:
+        return
 
     page = sidebar()
 
     role = st.session_state.role
 
-    # ---------------- ADMIN ----------------
+    # --------------------------------------------------------
+    # ADMIN
+    # --------------------------------------------------------
 
     if role == "admin":
 
         if page == "Dashboard":
             admin_dashboard()
+
+        elif page == "Classes":
+            admin_classes()
 
         elif page == "Tutors":
             admin_tutors()
@@ -1345,22 +2111,32 @@ else:
             admin_sessions()
 
         elif page == "Reports":
-            reports_page()
+            admin_reports()
 
-    # ---------------- TUTOR ----------------
+    # --------------------------------------------------------
+    # TUTOR
+    # --------------------------------------------------------
 
     elif role == "tutor":
 
         if page == "Dashboard":
             tutor_dashboard()
 
+        elif page == "Available Classes":
+            tutor_available_classes()
+
+        elif page == "My Commitments":
+            tutor_commitments()
+
         elif page == "My Sessions":
-            tutor_sessions_page()
+            tutor_sessions()
 
-        elif page == "Create Session":
-            create_session_page()
+        elif page == "Create Tutoring Session":
+            create_tutoring_session()
 
-    # ---------------- STUDENT ----------------
+    # --------------------------------------------------------
+    # STUDENT
+    # --------------------------------------------------------
 
     elif role == "student":
 
@@ -1368,7 +2144,15 @@ else:
             student_dashboard()
 
         elif page == "Available Sessions":
-            available_sessions_page()
+            student_available_sessions()
 
         elif page == "My Attendance":
-            student_attendance_page()
+            student_attendance()
+
+
+# ============================================================
+# RUN
+# ============================================================
+
+if __name__ == "__main__":
+    main()
