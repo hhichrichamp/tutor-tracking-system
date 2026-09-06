@@ -259,8 +259,8 @@ def initialize_data():
 
             {
                 "id": "CLS001",
-                "course": "420-N34-Java Web Programming",
-                "title": "Spring Boot / REST",
+                "course": "420-N12-Object Oriented Programming with Java - Level 1",
+                "title": "Object Oriented Programming with Java",
                 "date": now.date(),
                 "start": datetime.combine(
                     now.date(),
@@ -270,7 +270,7 @@ def initialize_data():
                     now.date(),
                     time(12, 0)
                 ),
-                "room": "Room B201",
+                "room": "Room F248",
                 "max_tutors": 2,
                 "status": "Open",
                 "qr_token": "CLASS-CLS001"
@@ -278,8 +278,8 @@ def initialize_data():
 
             {
                 "id": "CLS002",
-                "course": "420-SN1-RE Programming",
-                "title": "Python / NumPy",
+                "course": "420-N34-Backend Development",
+                "title": "Spring Boot / REST",
                 "date": now.date() + timedelta(days=1),
                 "start": datetime.combine(
                     now.date() + timedelta(days=1),
@@ -289,8 +289,8 @@ def initialize_data():
                     now.date() + timedelta(days=1),
                     time(15, 0)
                 ),
-                "room": "Lab A102",
-                "max_tutors": 3,
+                "room": "Room F233",
+                "max_tutors": 2,
                 "status": "Open",
                 "qr_token": "CLASS-CLS002"
             }
@@ -1724,7 +1724,7 @@ def create_tutoring_session():
         ],
 
         format_func=lambda sid:
-            f"{sid} — {get_student(sid)['name']}"
+            f"{get_student(sid)['name']}"
 
     )
 
