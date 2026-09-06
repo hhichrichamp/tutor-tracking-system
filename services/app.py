@@ -1703,14 +1703,19 @@ def create_tutoring_session():
         "Session title",
         placeholder="Java Help"
     )
+
     students = st.multiselect(
+
         "Students",
+
         options=[
             s["id"]
             for s in USERS["students"]
         ],
+
         format_func=lambda sid:
-            student_display_name(get_student(sid))
+            f"{get_student(sid)['name']}"
+
     )
 
     session_date = st.date_input(

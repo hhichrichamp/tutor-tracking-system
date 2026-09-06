@@ -6,6 +6,8 @@
       "password": "admin123"
     }
   ],
+
+
   "tutors": [
     {
       "id": "alhichri",
@@ -37,121 +39,96 @@
   ],
 
   
-  "students": [
-    {
-      "id": "2633188",
-      "last_name": "Abdin",
-      "first_name": "Mahir"
-    },
-    {
-      "id": "2610066",
-      "last_name": "Abdrahmanova",
-      "first_name": "Meerim"
-    },
-    {
-      "id": "2631987",
-      "last_name": "Bergeron",
-      "first_name": "Jesse"
-    },
-    {
-      "id": "2631089",
-      "last_name": "Bourne",
-      "first_name": "Isaac"
-    },
-    {
-      "id": "2630488",
-      "last_name": "Bujold",
-      "first_name": "Grégoire"
-    },
-    {
-      "id": "2630728",
-      "last_name": "Cantelmo Luppe Moreira",
-      "first_name": "Daniel"
-    },
-    {
-      "id": "2632191",
-      "last_name": "Côté",
-      "first_name": "Émerick"
-    },
-    {
-      "id": "2633387",
-      "last_name": "Coyle",
-      "first_name": "Jaylen"
-    },
-    {
-      "id": "2632838",
-      "last_name": "Curotte",
-      "first_name": "Jérémy"
-    },
-    {
-      "id": "2432995",
-      "last_name": "Dias",
-      "first_name": "Hayden"
-    },
-    {
-      "id": "2631764",
-      "last_name": "Douala Ndoumbe",
-      "first_name": "Anthony Spencer"
-    },
-    {
-      "id": "2631310",
-      "last_name": "Drouin",
-      "first_name": "Benjamin"
-    },
-    {
-      "id": "2630305",
-      "last_name": "El-Mejni",
-      "first_name": "Afnane"
-    },
-    {
-      "id": "2633099",
-      "last_name": "Fournier",
-      "first_name": "Zackari"
-    },
-    {
-      "id": "2131458",
-      "last_name": "Gonzalez Martinez",
-      "first_name": "Christian"
-    },
-    {
-      "id": "2631320",
-      "last_name": "Islam",
-      "first_name": "Jihan"
-    },
-    {
-      "id": "2630714",
-      "last_name": "Mathieu",
-      "first_name": "Yohan"
-    },
-    {
-      "id": "2532203",
-      "last_name": "Mavrogiorgis",
-      "first_name": "Charalambos"
-    },
-    {
-      "id": "2631531",
-      "last_name": "Patenaude",
-      "first_name": "Yohann"
-    },
-    {
-      "id": "2632609",
-      "last_name": "Poinlane",
-      "first_name": "Raphaël"
-    },
-    {
-      "id": "2631238",
-      "last_name": "Turgeon",
-      "first_name": "William"
-    },
-
-    {
-      "id": "1233210",
-      "last_name": "Haikel",
-      "first_name": "Student"
-    }
-
-
-  ]
+ "students": [
+  {
+    "id": "2633188",
+    "name": "Mahir Abdin"
+  },
+  {
+    "id": "2610066",
+    "name": "Meerim Abdrahmanova"
+  },
+  {
+    "id": "2631987",
+    "name": "Jesse Bergeron"
+  },
+  {
+    "id": "2631089",
+    "name": "Isaac Bourne"
+  },
+  {
+    "id": "2630488",
+    "name": "Grégoire Bujold"
+  },
+  {
+    "id": "2630728",
+    "name": "Daniel Cantelmo Luppe Moreira"
+  },
+  {
+    "id": "2632191",
+    "name": "Émerick Côté"
+  },
+  {
+    "id": "2633387",
+    "name": "Jaylen Coyle"
+  },
+  {
+    "id": "2632838",
+    "name": "Jérémy Curotte"
+  },
+  {
+    "id": "2432995",
+    "name": "Hayden Dias"
+  },
+  {
+    "id": "2631764",
+    "name": "Anthony Spencer Douala Ndoumbe"
+  },
+  {
+    "id": "2631310",
+    "name": "Benjamin Drouin"
+  },
+  {
+    "id": "2630305",
+    "name": "Afnane El-Mejni"
+  },
+  {
+    "id": "2633099",
+    "name": "Zackari Fournier"
+  },
+  {
+    "id": "2131458",
+    "name": "Christian Gonzalez Martinez"
+  },
+  {
+    "id": "2631320",
+    "name": "Jihan Islam"
+  },
+  {
+    "id": "2630714",
+    "name": "Yohan Mathieu"
+  },
+  {
+    "id": "2532203",
+    "name": "Charalambos Mavrogiorgis"
+  },
+  {
+    "id": "2631531",
+    "name": "Yohann Patenaude"
+  },
+  {
+    "id": "2632609",
+    "name": "Raphaël Poinlane"
+  },
+  {
+    "id": "2631238",
+    "name": "William Turgeon"
+  },
+  {
+    "id": "1233210",
+    "name": "Student Haikel"
+  }
+]
 
 
 
