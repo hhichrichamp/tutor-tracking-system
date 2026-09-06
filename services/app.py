@@ -3,6 +3,8 @@ import pandas as pd
 import qrcode
 import io
 import uuid
+import json
+
 
 from datetime import datetime, timedelta, date, time
 
@@ -92,62 +94,13 @@ st.markdown("""
 
 
 # ============================================================
-# SAMPLE USERS
+# LOAD USERS
 # ============================================================
 
 def load_users():
 
-    return {
-        "admins": [
-            {
-                "id": "A001",
-                "name": "Administrator",
-                "password": "admin123"
-            }
-        ],
-
-        "tutors": [
-            {
-                "id": "T001",
-                "name": "Ahmed Tutor",
-                "password": "1234"
-            },
-            {
-                "id": "T002",
-                "name": "Maria Tutor",
-                "password": "5678"
-            },
-            {
-                "id": "T003",
-                "name": "John Tutor",
-                "password": "9999"
-            }
-        ],
-
-        "students": [
-            {
-                "id": "S001",
-                "name": "Alice Smith"
-            },
-            {
-                "id": "S002",
-                "name": "Bob Johnson"
-            },
-            {
-                "id": "S003",
-                "name": "Carol Brown"
-            },
-            {
-                "id": "S004",
-                "name": "David Wilson"
-            },
-            {
-                "id": "S005",
-                "name": "Emma Davis"
-            }
-        ]
-    }
-
+    with open("data/users.json", "r", encoding="utf-8") as file:
+        return json.load(file)
 
 USERS = load_users()
 
