@@ -6,8 +6,17 @@ import uuid
 import json
 
 
+
+
+from urllib.parse import urlencode
 from datetime import datetime, timedelta, date, time
 
+
+# ============================================================
+# APPLICATION URL
+# ============================================================
+
+APP_URL = "https://tutor-center.streamlit.app"
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -322,12 +331,21 @@ def get_tutor(tutor_id):
 
 def get_student(student_id):
 
+    student_id = str(student_id).strip()
+
     for student in USERS["students"]:
-        if student["id"] == student_id:
+
+        if str(student["id"]).strip() == student_id:
+
             return student
 
     return None
+def student_display_name(student):
 
+    return (
+        f"{student['first_name']} "
+        f"{student['last_name']}"
+    )
 
 def get_class(class_id):
 
@@ -817,7 +835,31 @@ def admin_classes():
                 f"👨‍🏫 **{len(signups)} / "
                 f"{c['max_tutors']} tutors**"
             )
+####################################################################
+            if st.button(
+                "Display Classroom QR",
+                key=f"qr_class_{c['id']}"
+            ):
 
+                qr_data = create_qr_url(
+                    "class",
+                    c["id"],
+                    c["qr_token"]
+                )
+
+                image = generate_qr(
+                    qr_data
+                )
+
+                st.image(
+                    image,
+                    width=300
+                )
+
+                st.caption(
+                    "Tutors scan this QR code when attending this class."
+                )
+####################################################################
             if signups:
 
                 names = []
@@ -1586,12 +1628,10 @@ def tutor_sessions():
                     "Student Attendance QR Code"
                 )
 
-                qr_data = (
-                    "http://localhost:8501/"
-                    "?session="
-                    + session["id"]
-                    + "&token="
-                    + session["qr_token"]
+                qr_data = create_qr_url(
+                    "tutoring",
+                    session["id"],
+                    session["qr_token"]
                 )
 
                 image = generate_qr(
@@ -2026,11 +2066,601 @@ def student_attendance():
         )
 
 
+
+# ============================================================
+# QR CODE FUNCTIONS
+# ============================================================
+
+def create_qr_url(action, item_id, token):
+
+    params = {
+        "action": action,
+        "id": item_id,
+        "token": token
+    }
+
+    return APP_URL + "/?" + urlencode(params)
+
+
+def generate_qr(data):
+
+    qr = qrcode.QRCode(
+        version=1,
+        box_size=8,
+        border=4
+    )
+
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    image = qr.make_image()
+
+    buffer = io.BytesIO()
+
+    image.save(buffer, format="PNG")
+
+    return buffer.getvalue()
+
+# ============================================================
+# QR ATTENDANCE PAGE
+# ============================================================
+
+def qr_attendance_page():
+
+    params = st.query_params
+
+    action = params.get("action")
+    item_id = params.get("id")
+    token = params.get("token")
+
+    st.markdown(
+        '<div class="main-title">📱 Attendance</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitle">'
+        'Confirm your attendance'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    # --------------------------------------------------------
+    # Validate QR parameters
+    # --------------------------------------------------------
+
+    if not action or not item_id or not token:
+
+        st.error(
+            "Invalid or incomplete QR code."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # INDIVIDUAL TUTORING
+    # --------------------------------------------------------
+
+    if action == "tutoring":
+
+        tutoring_qr_page(
+            item_id,
+            token
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # CLASSROOM SUPPORT
+    # --------------------------------------------------------
+
+    if action == "class":
+
+        class_qr_page(
+            item_id,
+            token
+        )
+
+        return
+
+    st.error(
+        "Unknown attendance type."
+    )
+
+
+
+# ============================================================
+# TUTORING QR PAGE
+# ============================================================
+
+def tutoring_qr_page(session_id, token):
+
+    session = get_session(session_id)
+
+    # --------------------------------------------------------
+    # Verify session exists
+    # --------------------------------------------------------
+
+    if not session:
+
+        st.error(
+            "This tutoring session does not exist."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Verify QR token
+    # --------------------------------------------------------
+
+    if session["qr_token"] != token:
+
+        st.error(
+            "Invalid QR code."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Verify session is active
+    # --------------------------------------------------------
+
+    if session["status"] != "Active":
+
+        st.warning(
+            "This tutoring session is not currently active."
+        )
+
+        return
+
+    tutor = get_tutor(
+        session["tutor_id"]
+    )
+
+    # --------------------------------------------------------
+    # Display session information
+    # --------------------------------------------------------
+
+    st.subheader(
+        "📚 " + session["title"]
+    )
+
+    st.write(
+        f"**Tutor:** {tutor['name']}"
+    )
+
+    st.write(
+        f"**Session ID:** {session['id']}"
+    )
+
+    st.divider()
+
+    st.subheader(
+        "Student Attendance"
+    )
+
+    st.write(
+        "Enter your student number to confirm your attendance."
+    )
+
+    # --------------------------------------------------------
+    # Student enters student number
+    # --------------------------------------------------------
+
+    student_id = st.text_input(
+        "Student Number",
+        placeholder="Example: 2431744",
+        max_chars=20
+    )
+
+    # --------------------------------------------------------
+    # Confirm attendance
+    # --------------------------------------------------------
+
+    if st.button(
+        "✓ Confirm My Attendance",
+        type="primary",
+        use_container_width=True
+    ):
+
+        # -----------------------------------------------
+        # Check that student number was entered
+        # -----------------------------------------------
+
+        if not student_id:
+
+            st.error(
+                "Please enter your student number."
+            )
+
+            return
+
+        student_id = student_id.strip()
+
+        # -----------------------------------------------
+        # Validate student against users.json
+        # -----------------------------------------------
+
+        student = get_student(
+            student_id
+        )
+
+        if not student:
+
+            st.error(
+                "Student number not found."
+            )
+
+            st.warning(
+                "Please enter the student number "
+                "exactly as it appears in your student record."
+            )
+
+            return
+
+        # -----------------------------------------------
+        # IMPORTANT:
+        # Verify student belongs to this session
+        # -----------------------------------------------
+
+        if student_id not in [
+            str(sid)
+            for sid in session["student_ids"]
+        ]:
+
+            st.error(
+                "You are not registered for this "
+                "tutoring session."
+            )
+
+            return
+
+        # -----------------------------------------------
+        # Check for duplicate attendance
+        # -----------------------------------------------
+
+        already_present = any(
+
+            str(a["session_id"]) == str(session_id)
+            and str(a["student_id"]) == str(student_id)
+
+            for a in st.session_state.attendance
+
+        )
+
+        if already_present:
+
+            st.success(
+                "✓ Your attendance has already been recorded."
+            )
+
+            return
+
+        # -----------------------------------------------
+        # Record attendance
+        # -----------------------------------------------
+
+        st.session_state.attendance.append({
+
+            "id":
+                "ATT"
+                + uuid.uuid4().hex[:8].upper(),
+
+            "type":
+                "Tutoring",
+
+            "session_id":
+                session_id,
+
+            "class_id":
+                None,
+
+            "student_id":
+                student_id,
+
+            "tutor_id":
+                session["tutor_id"],
+
+            "check_in":
+                datetime.now(),
+
+            "check_out":
+                None,
+
+            "status":
+                "Present"
+
+        })
+
+        # -----------------------------------------------
+        # Confirmation
+        # -----------------------------------------------
+
+        st.success(
+            "✓ Attendance confirmed successfully!"
+        )
+
+        st.write(
+            f"**Student:** "
+            f"{student_display_name(student)}"
+        )
+
+        st.write(
+            f"**Student Number:** {student_id}"
+        )
+
+        st.write(
+            f"**Time:** "
+            f"{datetime.now().strftime('%H:%M:%S')}"
+        )
+
+        st.balloons()
+
+
+        
+
+# ============================================================
+# CLASSROOM SUPPORT QR PAGE
+# ============================================================
+
+def class_qr_page(class_id, token):
+
+    class_event = get_class(
+        class_id
+    )
+
+    if not class_event:
+
+        st.error(
+            "This class does not exist."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Verify QR token
+    # --------------------------------------------------------
+
+    if class_event["qr_token"] != token:
+
+        st.error(
+            "Invalid classroom QR code."
+        )
+
+        return
+
+    st.subheader(
+        class_event["course"]
+    )
+
+    st.write(
+        f"**Class:** {class_event['title']}"
+    )
+
+    st.write(
+        f"**Room:** {class_event['room']}"
+    )
+
+    st.write(
+        f"**Time:** "
+        f"{class_event['start'].strftime('%H:%M')} - "
+        f"{class_event['end'].strftime('%H:%M')}"
+    )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # Tutor identifies themselves
+    # --------------------------------------------------------
+
+    tutor_id = st.selectbox(
+
+        "Select your tutor ID",
+
+        options=[
+            tutor["id"]
+            for tutor in USERS["tutors"]
+        ],
+
+        format_func=lambda tid:
+            f"{tid} — "
+            f"{get_tutor(tid)['name']}"
+
+    )
+
+    tutor = get_tutor(
+        tutor_id
+    )
+
+    # --------------------------------------------------------
+    # Verify tutor is signed up
+    # --------------------------------------------------------
+
+    signed_up = any(
+
+        s["class_id"] == class_id
+        and s["tutor_id"] == tutor_id
+
+        for s in st.session_state.class_signups
+
+    )
+
+    if not signed_up:
+
+        st.error(
+            "You are not signed up for this class."
+        )
+
+        return
+
+    st.success(
+        f"You are signed up for this class, "
+        f"{tutor['name']}."
+    )
+
+    # --------------------------------------------------------
+    # Check existing attendance
+    # --------------------------------------------------------
+
+    attendance = None
+
+    for a in st.session_state.attendance:
+
+        if (
+            a["class_id"] == class_id
+            and a["tutor_id"] == tutor_id
+            and a["type"] == "Class Support"
+        ):
+
+            attendance = a
+
+            break
+
+    # --------------------------------------------------------
+    # No attendance yet → CHECK IN
+    # --------------------------------------------------------
+
+    if attendance is None:
+
+        if st.button(
+            "✓ Check In",
+            type="primary",
+            use_container_width=True
+        ):
+
+            st.session_state.attendance.append({
+
+                "id":
+                    "ATT"
+                    + uuid.uuid4().hex[:8].upper(),
+
+                "type":
+                    "Class Support",
+
+                "session_id":
+                    None,
+
+                "class_id":
+                    class_id,
+
+                "student_id":
+                    None,
+
+                "tutor_id":
+                    tutor_id,
+
+                "check_in":
+                    datetime.now(),
+
+                "check_out":
+                    None,
+
+                "status":
+                    "Present"
+
+            })
+
+            st.success(
+                "You are now checked in."
+            )
+
+            st.rerun()
+
+    # --------------------------------------------------------
+    # Already checked in → CHECK OUT
+    # --------------------------------------------------------
+
+    elif attendance["check_out"] is None:
+
+        st.success(
+            "✓ You are currently checked in."
+        )
+
+        st.write(
+            f"Check-in time: "
+            f"**{attendance['check_in'].strftime('%H:%M:%S')}**"
+        )
+
+        if st.button(
+            "Check Out",
+            type="primary",
+            use_container_width=True
+        ):
+
+            attendance["check_out"] = datetime.now()
+
+            hours = calculate_hours(
+                attendance["check_in"],
+                attendance["check_out"]
+            )
+
+            st.success(
+                f"Checked out successfully. "
+                f"Time recorded: **{hours:.2f} hours**."
+            )
+
+            st.rerun()
+
+    # --------------------------------------------------------
+    # Already completed
+    # --------------------------------------------------------
+
+    else:
+
+        hours = calculate_hours(
+            attendance["check_in"],
+            attendance["check_out"]
+        )
+
+        st.success(
+            "✓ Classroom attendance completed."
+        )
+
+        st.write(
+            f"Check-in: "
+            f"{attendance['check_in'].strftime('%H:%M:%S')}"
+        )
+
+        st.write(
+            f"Check-out: "
+            f"{attendance['check_out'].strftime('%H:%M:%S')}"
+        )
+
+        st.write(
+            f"**Hours: {hours:.2f}**"
+        )
+
+
+
+
+
+
+
 # ============================================================
 # MAIN APPLICATION
 # ============================================================
 
 def main():
+
+    # ========================================================
+    # HANDLE QR ATTENDANCE LINKS
+    # ========================================================
+
+    params = st.query_params
+
+    if (
+        params.get("action")
+        and params.get("id")
+        and params.get("token")
+    ):
+
+        qr_attendance_page()
+
+        return
+
+    # ========================================================
+    # NORMAL LOGIN APPLICATION
+    # ========================================================
 
     if not st.session_state.logged_in:
 
@@ -2041,6 +2671,8 @@ def main():
     page = sidebar()
 
     role = st.session_state.role
+
+    # ... rest of your existing main()
 
     # --------------------------------------------------------
     # ADMIN
