@@ -1169,7 +1169,8 @@ def tutor_available_classes():
 
     for c in sorted(
         st.session_state.classes,
-        key=lambda x: x["start"]
+        key=lambda x: x["start"],
+        reverse=True
     ):
 
         signups = [

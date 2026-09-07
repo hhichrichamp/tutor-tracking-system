@@ -1,0 +1,1 @@
+id , type , tutor_id , student_ids , title , date , scheduled_start , scheduled_end , actual_start , actual_end , status , qr_tokenid , class_id , tutor_id , signup_timeid , type , session_id , class_id , student_id , tutor_id , check_in , check_out , status
