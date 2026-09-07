@@ -23,8 +23,8 @@ def get_google_sheet():
     gc = gspread.service_account_from_dict(credentials)
 
     try:
-        spreadsheet = gc.open("Tutor Tracking System")
-        return spreadsheet
+        # spreadsheet = gc.open("Tutor Tracking System")
+        spreadsheet = gc.open_by_key("6996a757d5b6197daacb56254dc410c3e8c87873")
 
     except Exception as e:
         st.error(f"Could not open spreadsheet: {e}")
