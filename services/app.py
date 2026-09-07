@@ -15,23 +15,20 @@ from datetime import datetime, timedelta, date, time
 from google_sheets import read_classes_from_sheet
 
 
-
-
 st.title("Google Sheets Connection Test")
 
 try:
     credentials = dict(st.secrets["gcp_service_account"])
 
-    st.success("✓ gcp_service_account found")
+    st.success("✓ Secrets loaded")
 
-    # Show only the credential field names — NOT their values
-    st.write("Credential fields:")
-    st.write(list(credentials.keys()))
+    gc = gspread.service_account_from_dict(credentials)
+
+    st.success("✓ Google authentication successful")
 
 except Exception as e:
-    st.error("Could not read Google credentials")
+    st.error("Google authentication failed")
     st.exception(e)
-
 
 # ============================================================
 # APPLICATION URL
