@@ -1347,7 +1347,11 @@ def tutor_commitments():
                     ):
 
                         attendance["check_out"] = datetime.now()
-
+                        # ← add this right after:
+                        update_attendance_checkout_in_sheet(
+                            attendance["id"],
+                            attendance["check_out"]
+                        )
                         st.success(
                             "Classroom attendance recorded."
                         )
@@ -1478,6 +1482,13 @@ def tutor_sessions():
                         + uuid.uuid4().hex
                     )
 
+                    # ← add this right after:
+                    update_session_in_sheet(session["id"], {
+                        "status": session["status"],
+                        "actual_start": session["actual_start"],
+                        "qr_token": session["qr_token"],
+                    })
+
                     st.rerun()
 
             elif session["status"] == "Active":
@@ -1523,6 +1534,12 @@ def tutor_sessions():
 
                     session["status"] = "Completed"
                     session["actual_end"] = datetime.now()
+
+                    # ← add this right after:
+                    update_session_in_sheet(session["id"], {
+                        "status": session["status"],
+                        "actual_end": session["actual_end"],
+                    })
 
                     st.success(
                         "Session completed."
@@ -2464,13 +2481,13 @@ def class_qr_page(class_id, token):
                 attendance["check_in"],
                 attendance["check_out"]
             )
+            update_attendance_checkout_in_sheet(attendance["id"], attendance["check_out"])
 
             st.success(
                 f"Checked out successfully. "
                 f"Time recorded: **{hours:.2f} hours**."
             )
 
-            update_attendance_checkout_in_sheet(attendance["id"], attendance["check_out"])
             st.rerun()
 
     # --------------------------------------------------------
