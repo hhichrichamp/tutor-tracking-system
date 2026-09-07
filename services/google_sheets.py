@@ -22,6 +22,24 @@ def get_google_sheet():
 
 from datetime import datetime
 
+# def read_classes_from_sheet():
+
+#     spreadsheet = get_google_sheet()
+
+#     worksheet = spreadsheet.worksheet("Classes")
+
+#     records = worksheet.get_all_records()
+
+#     for record in records:
+
+#         if isinstance(record.get("start"), str):
+#             record["start"] = datetime.fromisoformat(record["start"])
+
+#         if isinstance(record.get("end"), str):
+#             record["end"] = datetime.fromisoformat(record["end"])
+
+#     return records
+
 def read_classes_from_sheet():
 
     spreadsheet = get_google_sheet()
@@ -30,13 +48,7 @@ def read_classes_from_sheet():
 
     records = worksheet.get_all_records()
 
-    for record in records:
-
-        if isinstance(record.get("start"), str):
-            record["start"] = datetime.fromisoformat(record["start"])
-
-        if isinstance(record.get("end"), str):
-            record["end"] = datetime.fromisoformat(record["end"])
+    st.write("First class record:")
+    st.write(records[0] if records else "No classes found")
 
     return records
-
