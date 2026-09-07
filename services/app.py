@@ -4,7 +4,7 @@ import qrcode
 import io
 import uuid
 import json
-
+import gspread
 
 
 
@@ -13,6 +13,17 @@ from datetime import datetime, timedelta, date, time
 
 
 from google_sheets import read_classes_from_sheet
+
+
+credentials = dict(st.secrets["gcp_service_account"])
+gc = gspread.service_account_from_dict(credentials)
+
+spreadsheet = gc.open("Tutor Tracking System")
+
+
+
+
+
 
 # ============================================================
 # APPLICATION URL
