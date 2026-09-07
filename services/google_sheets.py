@@ -24,13 +24,23 @@ def get_google_sheet():
 
     try:
         # spreadsheet = gc.open("Tutor Tracking System")
-        spreadsheet = gc.open_by_key("6996a757d5b6197daacb56254dc410c3e8c87873")
+        spreadsheet = gc.open_by_key("1VrbV0NHmP5e2nfscIqhNHTP9cONmBwf3v9rCMNndlkY")
 
     except Exception as e:
         st.error(f"Could not open spreadsheet: {e}")
         raise
 
+# def read_classes_from_sheet():
+#     spreadsheet = get_google_sheet()
+
+#     worksheet = spreadsheet.worksheet("Classes")
+
+#     records = worksheet.get_all_records()
+
+#     return records
+
 def read_classes_from_sheet():
+
     spreadsheet = get_google_sheet()
 
     worksheet = spreadsheet.worksheet("Classes")
