@@ -20,35 +20,52 @@ def get_google_sheet():
         st.error(f"Could not open spreadsheet: {e}")
         raise
 
-from datetime import datetime
 
-# def read_classes_from_sheet():
-
-#     spreadsheet = get_google_sheet()
-
-#     worksheet = spreadsheet.worksheet("Classes")
-
-#     records = worksheet.get_all_records()
-
-#     for record in records:
-
-#         if isinstance(record.get("start"), str):
-#             record["start"] = datetime.fromisoformat(record["start"])
-
-#         if isinstance(record.get("end"), str):
-#             record["end"] = datetime.fromisoformat(record["end"])
-
-#     return records
 
 def read_classes_from_sheet():
-
     spreadsheet = get_google_sheet()
 
     worksheet = spreadsheet.worksheet("Classes")
-
     records = worksheet.get_all_records()
 
-    st.write("First class record:")
-    st.write(records[0] if records else "No classes found")
+    classes = []
 
-    return records
+    for record in records:
+
+        class_date = datetime.strptime(
+            str(record["date"]),
+            "%Y-%m-%d"
+        ).date()
+
+        start_time = datetime.strptime(
+            str(record["start"]),
+            "%H:%M"
+        ).time()
+
+        end_time = datetime.strptime(
+            str(record["end"]),
+            "%H:%M"
+        ).time()
+
+        class_record = {
+            "id": record["id"],
+            "course": record["course"],
+            "title": record["title"],
+            "date": class_date,
+            "start": datetime.combine(
+                class_date,
+                start_time
+            ),
+            "end": datetime.combine(
+                class_date,
+                end_time
+            ),
+            "room": record["room"],
+            "max_tutors": int(record["max_tutors"]),
+            "status": record["status"],
+            "qr_token": record["qr_token"]
+        }
+
+        classes.append(class_record)
+
+    return classes
