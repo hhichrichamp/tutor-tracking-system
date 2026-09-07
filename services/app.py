@@ -15,16 +15,14 @@ from datetime import datetime, timedelta, date, time
 from google_sheets import read_classes_from_sheet
 
 
-st.title("Google Sheets Connection Test")
-
 try:
     credentials = dict(st.secrets["gcp_service_account"])
 
-    st.success("✓ Secrets loaded")
+    # st.success("✓ Secrets loaded")
 
     gc = gspread.service_account_from_dict(credentials)
 
-    st.success("✓ Google authentication successful")
+    # st.success("✓ Google authentication successful")
 
 except Exception as e:
     st.error("Google authentication failed")
