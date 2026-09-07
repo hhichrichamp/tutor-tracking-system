@@ -1425,6 +1425,7 @@ def tutor_sessions():
         unsafe_allow_html=True
     )
 
+    # get a list of the sessions in decending order by date
     my_sessions = [
 
         s for s in st.session_state.sessions
@@ -1432,6 +1433,8 @@ def tutor_sessions():
         if s["tutor_id"] == tutor_id
 
     ]
+    # sort the sessions in decending order by date
+    my_sessions.sort(key=lambda x: x["date"], reverse=True)
 
     for session in my_sessions:
 
