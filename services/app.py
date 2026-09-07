@@ -14,7 +14,10 @@ from datetime import datetime, timedelta, date, time
 
 from google_sheets import (
     read_classes_from_sheet,
-    add_class_to_sheet
+    add_class_to_sheet,
+    read_sessions_from_sheet, read_class_signups_from_sheet, read_attendance_from_sheet,
+    add_session_to_sheet, add_class_signup_to_sheet, add_attendance_to_sheet    ,
+    update_session_in_sheet, update_attendance_checkout_in_sheet
 )
 
 try:
@@ -156,7 +159,7 @@ def initialize_data():
 
         now = datetime.now()
 
-        st.session_state.sessions = [         ]
+        st.session_state.sessions = read_sessions_from_sheet()
 
     # --------------------------------------------------------
     # CLASS SCHEDULE
@@ -174,7 +177,7 @@ def initialize_data():
 
     if "class_signups" not in st.session_state:
 
-        st.session_state.class_signups = [         ]
+        st.session_state.class_signups = read_class_signups_from_sheet()
 
     # --------------------------------------------------------
     # ATTENDANCE
@@ -182,7 +185,9 @@ def initialize_data():
 
     if "attendance" not in st.session_state:
 
-        st.session_state.attendance = [        ]
+        st.session_state.attendance = read_attendance_from_sheet()
+
+         
 
 
 initialize_data()
@@ -263,26 +268,6 @@ def calculate_hours(start, end):
         return 0
 
     return (end - start).total_seconds() / 3600
-
-
-def generate_qr(data):
-
-    qr = qrcode.QRCode(
-        version=1,
-        box_size=8,
-        border=4
-    )
-
-    qr.add_data(data)
-    qr.make(fit=True)
-
-    image = qr.make_image()
-
-    buffer = io.BytesIO()
-
-    image.save(buffer, format="PNG")
-
-    return buffer.getvalue()
 
 
 def logout():
@@ -636,10 +621,7 @@ def admin_classes():
 
             else:
 
-                new_id = (
-                    "CLS"
-                    + str(len(st.session_state.classes) + 1)
-                )
+                new_id = "CLS" + uuid.uuid4().hex[:8].upper()
 
                 token = (
                     "CLASS-"
@@ -1254,13 +1236,14 @@ def tutor_available_classes():
                     key=f"signup_{c['id']}"
                 ):
 
+                    # in tutor_available_classes(), replace the append block:
                     st.session_state.class_signups.append({
-
+                        "id": "SGN" + uuid.uuid4().hex[:8].upper(),   # ← add this
                         "class_id": c["id"],
                         "tutor_id": tutor_id,
                         "signup_time": datetime.now()
-
                     })
+                    add_class_signup_to_sheet(st.session_state.class_signups[-1])
 
                     st.success(
                         "You have signed up."
@@ -1411,7 +1394,7 @@ def tutor_commitments():
                             "status": "Present"
 
                         })
-
+                        add_attendance_to_sheet(st.session_state.attendance[-1])
                         st.success(
                             "You are checked in."
                         )
@@ -1686,6 +1669,7 @@ def create_tutoring_session():
                 "qr_token": None
 
             })
+            add_session_to_sheet(st.session_state.sessions[-1])
 
             st.success(
                 "Tutoring session created."
@@ -1877,7 +1861,10 @@ def student_available_sessions():
                         "Present"
 
                 })
-
+                add_attendance_to_sheet(
+                    st.session_state.attendance[-1]
+                )   
+                
                 st.success(
                     "Attendance confirmed."
                 )
@@ -1959,6 +1946,9 @@ def create_qr_url(action, item_id, token):
     }
 
     return APP_URL + "/?" + urlencode(params)
+
+
+
 
 
 def generate_qr(data):
@@ -2250,7 +2240,9 @@ def tutoring_qr_page(session_id, token):
                 "Present"
 
         })
-
+        add_attendance_to_sheet(
+            st.session_state.attendance[-1]     
+        )
         # -----------------------------------------------
         # Confirmation
         # -----------------------------------------------
@@ -2438,7 +2430,7 @@ def class_qr_page(class_id, token):
                     "Present"
 
             })
-
+            add_attendance_to_sheet(st.session_state.attendance[-1])
             st.success(
                 "You are now checked in."
             )
@@ -2478,6 +2470,7 @@ def class_qr_page(class_id, token):
                 f"Time recorded: **{hours:.2f} hours**."
             )
 
+            update_attendance_checkout_in_sheet(attendance["id"], attendance["check_out"])
             st.rerun()
 
     # --------------------------------------------------------
