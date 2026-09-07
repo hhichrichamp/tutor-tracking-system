@@ -12,6 +12,8 @@ from urllib.parse import urlencode
 from datetime import datetime, timedelta, date, time
 
 
+from services.google_sheets import read_classes_from_sheet
+
 # ============================================================
 # APPLICATION URL
 # ============================================================
@@ -114,6 +116,7 @@ def load_users():
 USERS = load_users()
 
 
+
 # ============================================================
 # SESSION STATE INITIALIZATION
 # ============================================================
@@ -137,77 +140,7 @@ def initialize_data():
 
         now = datetime.now()
 
-        st.session_state.sessions = [
-
-            {
-                "id": "SES001",
-                "type": "Individual Tutoring",
-                "tutor_id": "T001",
-                "student_ids": ["S001"],
-                "title": "Java Help",
-                "date": now.date(),
-                "scheduled_start": datetime.combine(
-                    now.date(),
-                    time(14, 0)
-                ),
-                "scheduled_end": datetime.combine(
-                    now.date(),
-                    time(15, 0)
-                ),
-                "actual_start": None,
-                "actual_end": None,
-                "status": "Scheduled",
-                "qr_token": None
-            },
-
-            {
-                "id": "SES002",
-                "type": "Individual Tutoring",
-                "tutor_id": "T001",
-                "student_ids": ["S002"],
-                "title": "Java Programming",
-                "date": now.date(),
-                "scheduled_start": datetime.combine(
-                    now.date(),
-                    time(16, 0)
-                ),
-                "scheduled_end": datetime.combine(
-                    now.date(),
-                    time(17, 30)
-                ),
-                "actual_start": now - timedelta(minutes=20),
-                "actual_end": None,
-                "status": "Active",
-                "qr_token": "DEMO-SES002"
-            },
-
-            {
-                "id": "SES003",
-                "type": "Individual Tutoring",
-                "tutor_id": "T002",
-                "student_ids": ["S003", "S004"],
-                "title": "Python Help",
-                "date": now.date() - timedelta(days=1),
-                "scheduled_start": datetime.combine(
-                    now.date() - timedelta(days=1),
-                    time(15, 0)
-                ),
-                "scheduled_end": datetime.combine(
-                    now.date() - timedelta(days=1),
-                    time(16, 0)
-                ),
-                "actual_start": datetime.combine(
-                    now.date() - timedelta(days=1),
-                    time(15, 2)
-                ),
-                "actual_end": datetime.combine(
-                    now.date() - timedelta(days=1),
-                    time(16, 3)
-                ),
-                "status": "Completed",
-                "qr_token": "DEMO-SES003"
-            }
-        ]
+        st.session_state.sessions = [         ]
 
     # --------------------------------------------------------
     # CLASS SCHEDULE
@@ -217,46 +150,7 @@ def initialize_data():
 
         now = datetime.now()
 
-        st.session_state.classes = [
-
-            {
-                "id": "CLS001",
-                "course": "420-N12-Object Oriented Programming with Java - Level 1",
-                "title": "Object Oriented Programming with Java",
-                "date": now.date(),
-                "start": datetime.combine(
-                    now.date(),
-                    time(10, 0)
-                ),
-                "end": datetime.combine(
-                    now.date(),
-                    time(12, 0)
-                ),
-                "room": "Room F248",
-                "max_tutors": 2,
-                "status": "Open",
-                "qr_token": "CLASS-CLS001"
-            },
-
-            {
-                "id": "CLS002",
-                "course": "420-N34-Backend Development",
-                "title": "Spring Boot / REST",
-                "date": now.date() + timedelta(days=1),
-                "start": datetime.combine(
-                    now.date() + timedelta(days=1),
-                    time(13, 0)
-                ),
-                "end": datetime.combine(
-                    now.date() + timedelta(days=1),
-                    time(15, 0)
-                ),
-                "room": "Room F233",
-                "max_tutors": 2,
-                "status": "Open",
-                "qr_token": "CLASS-CLS002"
-            }
-        ]
+        st.session_state.classes =read_classes_from_sheet()
 
     # --------------------------------------------------------
     # CLASS SIGNUPS
@@ -264,20 +158,7 @@ def initialize_data():
 
     if "class_signups" not in st.session_state:
 
-        st.session_state.class_signups = [
-
-            {
-                "class_id": "CLS001",
-                "tutor_id": "T001",
-                "signup_time": datetime.now()
-            },
-
-            {
-                "class_id": "CLS002",
-                "tutor_id": "T002",
-                "signup_time": datetime.now()
-            }
-        ]
+        st.session_state.class_signups = [         ]
 
     # --------------------------------------------------------
     # ATTENDANCE
@@ -285,35 +166,15 @@ def initialize_data():
 
     if "attendance" not in st.session_state:
 
-        st.session_state.attendance = [
-
-            {
-                "id": "ATT001",
-                "type": "Tutoring",
-                "session_id": "SES003",
-                "class_id": None,
-                "student_id": "S003",
-                "tutor_id": "T002",
-                "check_in": datetime.now() - timedelta(days=1, hours=1),
-                "check_out": datetime.now() - timedelta(days=1),
-                "status": "Present"
-            },
-
-            {
-                "id": "ATT002",
-                "type": "Tutoring",
-                "session_id": "SES003",
-                "class_id": None,
-                "student_id": "S004",
-                "tutor_id": "T002",
-                "check_in": datetime.now() - timedelta(days=1, hours=1),
-                "check_out": datetime.now() - timedelta(days=1),
-                "status": "Present"
-            }
-        ]
+        st.session_state.attendance = [        ]
 
 
 initialize_data()
+
+
+
+
+
 
 
 # ============================================================
@@ -415,6 +276,10 @@ def logout():
     st.session_state.role = None
 
     st.rerun()
+
+
+
+
 
 
 # ============================================================
