@@ -1448,25 +1448,15 @@ def tutor_sessions():
         # BUILD FULL SCHEDULED DATETIMES
         # ====================================================
 
-        session_date = session["date"]
+        scheduled_start = session["scheduled_start"]
+        scheduled_end = session["scheduled_end"]
 
-        # Handle date stored as either a string or date object
-        if isinstance(session_date, str):
-            session_date = datetime.strptime(
-                session_date,
-                "%Y-%m-%d"
-            ).date()
+        # Make sure they are datetime objects
+        if isinstance(scheduled_start, str):
+            scheduled_start = datetime.fromisoformat(scheduled_start)
 
-        # scheduled_start / scheduled_end are time objects
-        scheduled_start = datetime.combine(
-            session_date,
-            session["scheduled_start"]
-        )
-
-        scheduled_end = datetime.combine(
-            session_date,
-            session["scheduled_end"]
-        )
+        if isinstance(scheduled_end, str):
+            scheduled_end = datetime.fromisoformat(scheduled_end)
 
         # The tutor can start during the final 15 minutes
         # of the scheduled session.
