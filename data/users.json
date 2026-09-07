@@ -18,22 +18,22 @@
         {
       "id": "T001",
       "name": "Xavier Bradley",
-      "password": "1234"
+      "password": "xav!er"
     },
     {
       "id": "T002",
       "name": "Nathan Bessette",
-      "password": "5678"
+      "password": "nath@n"
     },
     {
       "id": "T003",
       "name": "Viktoria Penkova Zlateva",
-      "password": "9999"
+      "password": "vi&toria"
     },
         {
       "id": "T004",
       "name": "Thomas Angers",
-      "password": "9999"
+      "password": "thoma$"
     }
 
   ],

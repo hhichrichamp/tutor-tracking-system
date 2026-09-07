@@ -369,7 +369,7 @@ def login_page():
 
         st.info(
             "Welcome to the tutor center tracking system. "
-            "Students can enter S001–S005 without a password."
+            "Login to access your dashboard."
         )
 
 
