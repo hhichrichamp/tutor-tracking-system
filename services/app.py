@@ -699,8 +699,8 @@ def admin_classes():
             )
 
             c2.write(
-                f"🕐 **{c['start']} - "
-                f"{c['end']}**"
+                f"🕐 **{c['start'].strftime('%H:%M')} - "
+                f"{c['end'].strftime('%H:%M')}**"
             )
 
             c3.write(

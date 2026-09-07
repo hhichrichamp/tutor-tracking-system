@@ -19,16 +19,23 @@ def get_google_sheet():
         st.error(f"Could not open spreadsheet: {e}")
         raise
 
+from datetime import datetime
 
 def read_classes_from_sheet():
 
     spreadsheet = get_google_sheet()
 
-    worksheets = spreadsheet.worksheets()
-
-
     worksheet = spreadsheet.worksheet("Classes")
 
     records = worksheet.get_all_records()
 
+    for record in records:
+
+        if isinstance(record.get("start"), str):
+            record["start"] = datetime.fromisoformat(record["start"])
+
+        if isinstance(record.get("end"), str):
+            record["end"] = datetime.fromisoformat(record["end"])
+
     return records
+
