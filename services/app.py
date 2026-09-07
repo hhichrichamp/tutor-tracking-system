@@ -12,8 +12,10 @@ from urllib.parse import urlencode
 from datetime import datetime, timedelta, date, time
 
 
-from google_sheets import read_classes_from_sheet
-
+from google_sheets import (
+    read_classes_from_sheet,
+    add_class_to_sheet
+)
 
 try:
     credentials = dict(st.secrets["gcp_service_account"])
@@ -663,6 +665,7 @@ def admin_classes():
                     "status": "Open",
                     "qr_token": token
                 }
+                add_class_to_sheet(new_class)
 
                 st.session_state.classes.append(
                     new_class

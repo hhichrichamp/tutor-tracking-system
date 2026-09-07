@@ -69,3 +69,23 @@ def read_classes_from_sheet():
         classes.append(class_record)
 
     return classes
+
+
+def add_class_to_sheet(class_data):
+    spreadsheet = get_google_sheet()
+    worksheet = spreadsheet.worksheet("Classes")
+
+    row = [
+        class_data["id"],
+        class_data["course"],
+        class_data["title"],
+        class_data["date"].strftime("%Y-%m-%d"),
+        class_data["start"].strftime("%H:%M"),
+        class_data["end"].strftime("%H:%M"),
+        class_data["room"],
+        class_data["max_tutors"],
+        class_data["status"],
+        class_data["qr_token"]
+    ]
+
+    worksheet.append_row(row)
