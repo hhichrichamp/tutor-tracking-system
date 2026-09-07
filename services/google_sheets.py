@@ -88,7 +88,7 @@ def add_class_to_sheet(class_data):
         class_data["qr_token"]
     ]
 
-    worksheet.append_row(row)
+    worksheet.append_row(row , value_input_option="RAW")
 
 
 
@@ -117,8 +117,9 @@ def add_class_signup_to_sheet(signup_data):
         signup_data["id"],                                    # add this field when you create signups
         signup_data["class_id"],
         signup_data["tutor_id"],
-        signup_data["signup_time"].strftime("%Y-%m-%d %H:%M:%S"),
-    ])
+        signup_data["signup_time"].strftime("%Y-%m-%d %H:%M:%S")
+    ],
+        value_input_option="RAW")
 
 
 # ── Sessions ───────────────────────────────────────────────────
@@ -163,8 +164,9 @@ def add_session_to_sheet(session_data):
         session_data["actual_start"].strftime("%Y-%m-%d %H:%M:%S") if session_data["actual_start"] else "",
         session_data["actual_end"].strftime("%Y-%m-%d %H:%M:%S") if session_data["actual_end"] else "",
         session_data["status"],
-        session_data["qr_token"] or "",
-    ])
+        session_data["qr_token"] or ""
+    ],
+        value_input_option="RAW")
 
 def update_session_in_sheet(session_id, updated_fields: dict):
     """Patch specific columns of an existing session row by its ID."""
@@ -181,7 +183,7 @@ def update_session_in_sheet(session_id, updated_fields: dict):
                 if field in col_map:
                     if hasattr(value, "strftime"):
                         value = value.strftime("%Y-%m-%d %H:%M:%S")
-                    ws.update_cell(i, col_map[field], value or "")
+                    ws.update_cell(i, col_map[field], value or "", value_input_option="RAW")
             break
 
 
@@ -219,8 +221,9 @@ def add_attendance_to_sheet(attendance_data):
         attendance_data["tutor_id"] or "",
         attendance_data["check_in"].strftime("%Y-%m-%d %H:%M:%S") if attendance_data["check_in"] else "",
         attendance_data["check_out"].strftime("%Y-%m-%d %H:%M:%S") if attendance_data["check_out"] else "",
-        attendance_data["status"],
-    ])
+        attendance_data["status"]
+    ],
+        value_input_option="RAW")
 
 def update_attendance_checkout_in_sheet(att_id, check_out):
     """Write check_out time to an existing attendance row."""
@@ -229,5 +232,5 @@ def update_attendance_checkout_in_sheet(att_id, check_out):
     records = ws.get_all_records()
     for i, row in enumerate(records, start=2):
         if str(row["id"]) == str(att_id):
-            ws.update_cell(i, 8, check_out.strftime("%Y-%m-%d %H:%M:%S"))
+            ws.update_cell(i, 8, check_out.strftime("%Y-%m-%d %H:%M:%S"), value_input_option="RAW")
             break
