@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 from datetime import datetime, timedelta, date, time
 
 
-from services.google_sheets import read_classes_from_sheet
+from google_sheets import read_classes_from_sheet
 
 # ============================================================
 # APPLICATION URL
