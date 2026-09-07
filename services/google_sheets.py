@@ -183,7 +183,7 @@ def update_session_in_sheet(session_id, updated_fields: dict):
                 if field in col_map:
                     if hasattr(value, "strftime"):
                         value = value.strftime("%Y-%m-%d %H:%M:%S")
-                    ws.update_cell(i, col_map[field], value or "", value_input_option="RAW")
+                    ws.update_cell(i, col_map[field], value or "")
             break
 
 
@@ -232,5 +232,5 @@ def update_attendance_checkout_in_sheet(att_id, check_out):
     records = ws.get_all_records()
     for i, row in enumerate(records, start=2):
         if str(row["id"]) == str(att_id):
-            ws.update_cell(i, 8, check_out.strftime("%Y-%m-%d %H:%M:%S"), value_input_option="RAW")
+            ws.update_cell(i, 8, check_out.strftime("%Y-%m-%d %H:%M:%S"))
             break
