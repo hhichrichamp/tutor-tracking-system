@@ -224,10 +224,7 @@ def get_student(student_id):
     return None
 def student_display_name(student):
 
-    return (
-        f"{student['first_name']} "
-        f"{student['last_name']}"
-    )
+    return (        f"{student['name']} "    )
 
 def get_class(class_id):
 
