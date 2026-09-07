@@ -43,6 +43,13 @@ def read_classes_from_sheet():
 
     spreadsheet = get_google_sheet()
 
+    worksheets = spreadsheet.worksheets()
+
+    st.write("Worksheets found:")
+
+    for ws in worksheets:
+        st.write(ws.title)
+
     worksheet = spreadsheet.worksheet("Classes")
 
     records = worksheet.get_all_records()
