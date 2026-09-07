@@ -1425,18 +1425,72 @@ def tutor_sessions():
         unsafe_allow_html=True
     )
 
-    # get a list of the sessions in decending order by date
+    # --------------------------------------------------------
+    # Get this tutor's sessions
+    # --------------------------------------------------------
     my_sessions = [
-
         s for s in st.session_state.sessions
-
         if s["tutor_id"] == tutor_id
-
     ]
-    # sort the sessions in decending order by date
-    my_sessions.sort(key=lambda x: x["date"], reverse=True)
+
+    # Sort sessions in descending order by date and time
+    my_sessions.sort(
+        key=lambda x: (
+            x["date"],
+            x["scheduled_start"]
+        ),
+        reverse=True
+    )
 
     for session in my_sessions:
+
+        # ====================================================
+        # BUILD FULL SCHEDULED DATETIMES
+        # ====================================================
+
+        session_date = session["date"]
+
+        # Handle date stored as either a string or date object
+        if isinstance(session_date, str):
+            session_date = datetime.strptime(
+                session_date,
+                "%Y-%m-%d"
+            ).date()
+
+        # scheduled_start / scheduled_end are time objects
+        scheduled_start = datetime.combine(
+            session_date,
+            session["scheduled_start"]
+        )
+
+        scheduled_end = datetime.combine(
+            session_date,
+            session["scheduled_end"]
+        )
+
+        # The tutor can start during the final 15 minutes
+        # of the scheduled session.
+        #
+        # Example:
+        # scheduled session = 10:00 - 11:00
+        # latest start      = 10:45
+        latest_start = (
+            scheduled_end - timedelta(minutes=15)
+        )
+
+        # A manually ended session can never go beyond
+        # scheduled_end + 15 minutes.
+        #
+        # Example:
+        # scheduled session = 10:00 - 11:00
+        # maximum end       = 11:15
+        maximum_end = (
+            scheduled_end + timedelta(minutes=15)
+        )
+
+        # ====================================================
+        # DISPLAY SESSION
+        # ====================================================
 
         with st.container(border=True):
 
@@ -1445,7 +1499,7 @@ def tutor_sessions():
             )
 
             st.write(
-                f"📅 {session['date']}"
+                f"📅 {session_date.strftime('%Y-%m-%d')}"
             )
 
             st.write(
@@ -1453,6 +1507,10 @@ def tutor_sessions():
                 f"{session['scheduled_start'].strftime('%H:%M')} - "
                 f"{session['scheduled_end'].strftime('%H:%M')}"
             )
+
+            # ------------------------------------------------
+            # Students
+            # ------------------------------------------------
 
             students = []
 
@@ -1470,34 +1528,123 @@ def tutor_sessions():
                 + ", ".join(students)
             )
 
+            # ====================================================
+            # SCHEDULED
+            # ====================================================
+
             if session["status"] == "Scheduled":
 
-                if st.button(
-                    "Start Session",
-                    key=f"start_{session['id']}"
-                ):
+                now = datetime.now()
 
-                    session["status"] = "Active"
-                    session["actual_start"] = datetime.now()
-                    session["qr_token"] = (
-                        "SESSION-"
-                        + uuid.uuid4().hex
+                # --------------------------------------------
+                # Too early
+                # --------------------------------------------
+
+                if now < scheduled_start:
+
+                    st.info(
+                        f"Session cannot be started before "
+                        f"{scheduled_start.strftime('%H:%M')}."
                     )
 
-                    # ← add this right after:
-                    update_session_in_sheet(session["id"], {
-                        "status": session["status"],
-                        "actual_start": session["actual_start"],
-                        "qr_token": session["qr_token"],
-                    })
+                # --------------------------------------------
+                # Too late
+                # --------------------------------------------
 
-                    st.rerun()
+                elif now > latest_start:
+
+                    st.warning(
+                        f"Session can no longer be started. "
+                        f"The latest start time was "
+                        f"{latest_start.strftime('%H:%M')}."
+                    )
+
+                # --------------------------------------------
+                # Valid start period
+                # --------------------------------------------
+
+                else:
+
+                    if st.button(
+                        "Start Session",
+                        key=f"start_{session['id']}"
+                    ):
+
+                        now = datetime.now()
+
+                        # ------------------------------------
+                        # Double-check the time.
+                        #
+                        # This protects against the page being
+                        # open while the allowed start window
+                        # changes.
+                        # ------------------------------------
+
+                        if (
+                            now >= scheduled_start
+                            and now <= latest_start
+                        ):
+
+                            session["status"] = "Active"
+
+                            session["actual_start"] = now
+
+                            # --------------------------------
+                            # Default session length = 15 min
+                            # --------------------------------
+
+                            session["actual_end"] = (
+                                now + timedelta(minutes=15)
+                            )
+
+                            session["qr_token"] = (
+                                "SESSION-"
+                                + uuid.uuid4().hex
+                            )
+
+                            # --------------------------------
+                            # Persist to Google Sheet
+                            # --------------------------------
+
+                            update_session_in_sheet(
+                                session["id"],
+                                {
+                                    "status": session["status"],
+                                    "actual_start": session["actual_start"],
+                                    "actual_end": session["actual_end"],
+                                    "qr_token": session["qr_token"],
+                                }
+                            )
+
+                            st.rerun()
+
+                        else:
+
+                            st.error(
+                                "The session can no longer be started."
+                            )
+
+            # ====================================================
+            # ACTIVE
+            # ====================================================
 
             elif session["status"] == "Active":
 
-                st.success(
-                    "Session is active."
-                )
+                st.success("Session is active.")
+
+                # The initial actual_end was set to:
+                # actual_start + 15 minutes
+                #
+                # This value stays unchanged if the tutor forgets
+                # to click End Session.
+
+                actual_end = session.get("actual_end")
+
+                if actual_end:
+                    st.info(
+                        "Default session end: "
+                        + actual_end.strftime("%H:%M")
+                    )
 
                 st.subheader(
                     "Student Attendance QR Code"
@@ -1509,13 +1656,9 @@ def tutor_sessions():
                     session["qr_token"]
                 )
 
-                image = generate_qr(
-                    qr_data
-                )
+                image = generate_qr(qr_data)
 
-                col1, col2, col3 = st.columns(
-                    [1, 2, 1]
-                )
+                col1, col2, col3 = st.columns([1, 2, 1])
 
                 with col2:
 
@@ -1529,36 +1672,95 @@ def tutor_sessions():
                         "to confirm attendance."
                     )
 
+                # ------------------------------------------------
+                # End Session
+                # ------------------------------------------------
+
                 if st.button(
                     "End Session",
                     key=f"end_{session['id']}"
                 ):
 
-                    session["status"] = "Completed"
-                    session["actual_end"] = datetime.now()
+                    now = datetime.now()
 
-                    # ← add this right after:
-                    update_session_in_sheet(session["id"], {
-                        "status": session["status"],
-                        "actual_end": session["actual_end"],
-                    })
+                    # ------------------------------------------------
+                    # Tutor can manually end the session only up to
+                    # scheduled_end + 15 minutes.
+                    # ------------------------------------------------
 
-                    st.success(
-                        "Session completed."
+                    if now <= maximum_end:
+
+                        session["status"] = "Completed"
+
+                        # Actual session length is:
+                        #
+                        # actual_end - actual_start
+                        #
+                        # This can be longer than 15 minutes, but
+                        # never beyond scheduled_end + 15 minutes.
+
+                        session["actual_end"] = now
+
+                        update_session_in_sheet(
+                            session["id"],
+                            {
+                                "status": session["status"],
+                                "actual_end": session["actual_end"],
+                            }
+                        )
+
+                        st.success(
+                            "Session completed."
+                        )
+
+                        st.rerun()
+
+                    else:
+
+                        # ------------------------------------------------
+                        # Tutor forgot to end the session.
+                        #
+                        # DO NOT change actual_end.
+                        #
+                        # The original 15-minute default remains.
+                        # ------------------------------------------------
+
+                        st.warning(
+                            "The session end time has passed. "
+                            "The default 15-minute session length "
+                            "will be recorded because the session "
+                            "was not ended on time."
+                        )
+
+            # ====================================================
+            # COMPLETED
+            # ====================================================
+
+            elif session["status"] == "Completed":
+
+                if (
+                    session.get("actual_start")
+                    and session.get("actual_end")
+                ):
+
+                    hours = calculate_hours(
+                        session["actual_start"],
+                        session["actual_end"]
                     )
 
-                    st.rerun()
+                    st.info(
+                        f"Completed — {hours:.2f} hours"
+                    )
 
-            else:
+                else:
 
-                hours = calculate_hours(
-                    session["actual_start"],
-                    session["actual_end"]
-                )
+                    st.info(
+                        "Completed"
+                    )
 
-                st.info(
-                    f"Completed — {hours:.2f} hours"
-                )
+
+
+
 
 
 # ============================================================
