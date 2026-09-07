@@ -1,6 +1,6 @@
 import gspread
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, date
 
 
 def get_google_sheet():
