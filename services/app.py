@@ -1445,42 +1445,40 @@ def tutor_sessions():
     for session in my_sessions:
 
         # ====================================================
-        # BUILD FULL SCHEDULED DATETIMES
+        # SCHEDULED START / END
         # ====================================================
 
         scheduled_start = session["scheduled_start"]
         scheduled_end = session["scheduled_end"]
 
-        # Make sure they are datetime objects
+        # Convert strings if necessary
         if isinstance(scheduled_start, str):
-            scheduled_start = datetime.fromisoformat(scheduled_start)
+            scheduled_start = datetime.fromisoformat(
+                scheduled_start
+            )
 
         if isinstance(scheduled_end, str):
-            scheduled_end = datetime.fromisoformat(scheduled_end)
+            scheduled_end = datetime.fromisoformat(
+                scheduled_end
+            )
 
-        # The tutor can start during the final 15 minutes
-        # of the scheduled session.
+        # Latest time the tutor can START
         #
         # Example:
-        # scheduled session = 10:00 - 11:00
-        # latest start      = 10:45
+        # 10:00 - 11:00
+        # latest start = 10:45
         latest_start = (
             scheduled_end - timedelta(minutes=15)
         )
 
-        # A manually ended session can never go beyond
-        # scheduled_end + 15 minutes.
+        # Latest time the tutor can MANUALLY END
         #
         # Example:
-        # scheduled session = 10:00 - 11:00
-        # maximum end       = 11:15
+        # 10:00 - 11:00
+        # maximum end = 11:15
         maximum_end = (
             scheduled_end + timedelta(minutes=15)
         )
-
-        # ====================================================
-        # DISPLAY SESSION
-        # ====================================================
 
         with st.container(border=True):
 
@@ -1489,15 +1487,14 @@ def tutor_sessions():
             )
 
             st.write(
-                f"📅 {session_date.strftime('%Y-%m-%d')}"
+                f"📅 {session['date']}"
             )
 
             st.write(
                 f"🕐 "
-                f"{session['scheduled_start'].strftime('%H:%M')} - "
-                f"{session['scheduled_end'].strftime('%H:%M')}"
+                f"{scheduled_start.strftime('%H:%M')} - "
+                f"{scheduled_end.strftime('%H:%M')}"
             )
-
             # ------------------------------------------------
             # Students
             # ------------------------------------------------
