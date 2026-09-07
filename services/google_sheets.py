@@ -2,19 +2,33 @@ import gspread
 import streamlit as st
 
 
+# def get_google_sheet():
+#     """
+#     Connect to the Google Spreadsheet.
+#     """
+
+#     credentials = dict(st.secrets["gcp_service_account"])
+
+#     gc = gspread.service_account_from_dict(credentials)
+
+#     spreadsheet = gc.open("Tutor Tracking System")
+
+#     return spreadsheet
+
+
 def get_google_sheet():
-    """
-    Connect to the Google Spreadsheet.
-    """
 
     credentials = dict(st.secrets["gcp_service_account"])
 
     gc = gspread.service_account_from_dict(credentials)
 
-    spreadsheet = gc.open("Tutor Tracking System")
+    try:
+        spreadsheet = gc.open("Tutor Tracking System")
+        return spreadsheet
 
-    return spreadsheet
-
+    except Exception as e:
+        st.error(f"Could not open spreadsheet: {e}")
+        raise
 
 def read_classes_from_sheet():
     spreadsheet = get_google_sheet()
