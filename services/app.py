@@ -16,11 +16,21 @@ from google_sheets import read_classes_from_sheet
 
 
 
-st.title("Secrets Test")
 
-st.write("Available secrets:")
+st.title("Google Sheets Connection Test")
 
-st.write(list(st.secrets.keys()))
+try:
+    credentials = dict(st.secrets["gcp_service_account"])
+
+    st.success("✓ gcp_service_account found")
+
+    # Show only the credential field names — NOT their values
+    st.write("Credential fields:")
+    st.write(list(credentials.keys()))
+
+except Exception as e:
+    st.error("Could not read Google credentials")
+    st.exception(e)
 
 
 # ============================================================
