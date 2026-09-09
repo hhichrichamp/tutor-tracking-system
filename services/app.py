@@ -1530,7 +1530,7 @@ def tutor_dashboard():
             signup["class_id"]
         )
 
-        if c and c["start"] >= now_local():
+        if c and ensure_local_datetime(c["start"]) >= now_local():
 
             upcoming.append(c)
 
