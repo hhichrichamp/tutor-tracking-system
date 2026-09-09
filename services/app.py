@@ -267,15 +267,6 @@ def calculate_hours(start, end):
     return (end - start).total_seconds() / 3600
 
 
-def tutoring_hours_earned(session):
-
-    if not session_has_attendance(session["id"]):
-        return 0
-
-    return calculate_hours(
-        session.get("actual_start"),
-        session.get("actual_end")
-    )
 
 
 
@@ -3321,7 +3312,10 @@ def tutoring_hours_earned(session):
     if not session_has_attendance(session["id"]):
         return 0
 
-    return tutoring_hours_earned(session)
+    return calculate_hours(
+            session.get("actual_start"),
+            session.get("actual_end")
+        )
 
 
 def get_tutor_commitments(tutor_id):
