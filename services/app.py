@@ -6,7 +6,7 @@ import uuid
 import json
 import gspread
 
-
+from streamlit_calendar import calendar
 
 from urllib.parse import urlencode
 from datetime import datetime, timedelta, date, time
@@ -267,6 +267,18 @@ def calculate_hours(start, end):
     return (end - start).total_seconds() / 3600
 
 
+def tutoring_hours_earned(session):
+
+    if not session_has_attendance(session["id"]):
+        return 0
+
+    return calculate_hours(
+        session.get("actual_start"),
+        session.get("actual_end")
+    )
+
+
+
 def logout():
 
     st.session_state.logged_in = False
@@ -467,10 +479,7 @@ def admin_dashboard():
 
     for session in st.session_state.sessions:
 
-        total_hours += calculate_hours(
-            session["actual_start"],
-            session["actual_end"]
-        )
+        total_hours += tutoring_hours_earned(session)
 
     for att in st.session_state.attendance:
 
@@ -479,10 +488,7 @@ def admin_dashboard():
             and att["tutor_id"]
         ):
 
-            total_hours += calculate_hours(
-                att["check_in"],
-                att["check_out"]
-            )
+            total_hours += tutoring_hours_earned(session)
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
@@ -745,7 +751,6 @@ def admin_classes():
                     "No tutors have signed up."
                 )
 
-
 # ============================================================
 # ADMIN TUTORS
 # ============================================================
@@ -757,47 +762,230 @@ def admin_tutors():
         unsafe_allow_html=True
     )
 
-    rows = []
-
-    for tutor in USERS["tutors"]:
-
-        hours = 0
-
-        # Individual tutoring
-        for session in st.session_state.sessions:
-
-            if session["tutor_id"] == tutor["id"]:
-
-                hours += calculate_hours(
-                    session["actual_start"],
-                    session["actual_end"]
-                )
-
-        # Classroom support
-        for attendance in st.session_state.attendance:
-
-            if (
-                attendance["tutor_id"] == tutor["id"]
-                and attendance["type"] == "Class Support"
-            ):
-
-                hours += calculate_hours(
-                    attendance["check_in"],
-                    attendance["check_out"]
-                )
-
-        rows.append({
-            "Tutor ID": tutor["id"],
-            "Name": tutor["name"],
-            "Hours": round(hours, 2)
-        })
-
-    st.dataframe(
-        pd.DataFrame(rows),
-        use_container_width=True,
-        hide_index=True
+    st.markdown(
+        '<div class="subtitle">'
+        'Tutor commitments and tutoring activity'
+        '</div>',
+        unsafe_allow_html=True
     )
 
+    # --------------------------------------------------------
+    # Tutor selection
+    # --------------------------------------------------------
+
+    tutor_options = {
+        tutor["id"]: tutor["name"]
+        for tutor in USERS["tutors"]
+    }
+
+    selected_tutor_id = st.selectbox(
+        "Select tutor",
+        options=list(tutor_options.keys()),
+        format_func=lambda tid:
+            f"{tid} — {tutor_options[tid]}"
+    )
+
+    tutor = get_tutor(
+        selected_tutor_id
+    )
+
+    # --------------------------------------------------------
+    # Calculate accomplished hours
+    # --------------------------------------------------------
+
+    tutoring_hours = 0
+    class_hours = 0
+
+    for session in st.session_state.sessions:
+
+        if session["tutor_id"] == selected_tutor_id:
+
+            tutoring_hours += tutoring_hours_earned(
+                session
+            )
+
+    for attendance in st.session_state.attendance:
+
+        if (
+            attendance["tutor_id"] == selected_tutor_id
+            and attendance["type"] == "Class Support"
+        ):
+
+            class_hours += calculate_hours(
+                attendance["check_in"],
+                attendance["check_out"]
+            )
+
+    total_hours = tutoring_hours + class_hours
+
+    # --------------------------------------------------------
+    # Metrics
+    # --------------------------------------------------------
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
+        "Tutoring Hours",
+        f"{tutoring_hours:.2f}"
+    )
+
+    c2.metric(
+        "Class Support Hours",
+        f"{class_hours:.2f}"
+    )
+
+    c3.metric(
+        "Total Hours",
+        f"{total_hours:.2f}"
+    )
+
+    st.divider()
+
+    # ========================================================
+    # COMMITMENTS
+    # ========================================================
+
+    st.subheader(
+        "Commitments"
+    )
+
+    commitments = get_tutor_commitments(
+        selected_tutor_id
+    )
+
+    if not commitments:
+
+        st.info(
+            "This tutor has no commitments."
+        )
+
+    else:
+
+        rows = []
+
+        for commitment in commitments:
+
+            rows.append({
+
+                "Type":
+                    commitment["type"],
+
+                "Title":
+                    commitment["title"],
+
+                "Date":
+                    commitment["date"],
+
+                "Start":
+                    commitment["start"].strftime(
+                        "%H:%M"
+                    ),
+
+                "End":
+                    commitment["end"].strftime(
+                        "%H:%M"
+                    ),
+
+                "Location":
+                    commitment["location"],
+
+                "Status":
+                    commitment["status"]
+
+            })
+
+        st.dataframe(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True
+        )
+
+    st.divider()
+
+    # ========================================================
+    # TUTORING SESSIONS
+    # ========================================================
+
+    st.subheader(
+        "Tutoring Sessions"
+    )
+
+    sessions = [
+
+        s for s in st.session_state.sessions
+
+        if s["tutor_id"] == selected_tutor_id
+
+    ]
+
+    sessions.sort(
+        key=lambda s: s["scheduled_start"]
+    )
+
+    if not sessions:
+
+        st.info(
+            "No tutoring sessions."
+        )
+
+    else:
+
+        rows = []
+
+        for session in sessions:
+
+            attendance = get_session_attendance(
+                session["id"]
+            )
+
+            credited_hours = tutoring_hours_earned(
+                session
+            )
+
+            rows.append({
+
+                "Date":
+                    session["date"],
+
+                "Session":
+                    session["title"],
+
+                "Scheduled":
+                    (
+                        session["scheduled_start"]
+                        .strftime("%H:%M")
+                        + " - "
+                        + session["scheduled_end"]
+                        .strftime("%H:%M")
+                    ),
+
+                "Students Registered":
+                    len(
+                        session.get(
+                            "student_ids",
+                            []
+                        )
+                    ),
+
+                "Students Attended":
+                    len(attendance),
+
+                "Status":
+                    session["status"],
+
+                "Hours Earned":
+                    round(
+                        credited_hours,
+                        2
+                    )
+
+            })
+
+        st.dataframe(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True
+        )
 
 # ============================================================
 # ADMIN STUDENTS
@@ -856,11 +1044,12 @@ def admin_sessions():
                     student["name"]
                 )
 
-        hours = calculate_hours(
-            session["actual_start"],
-            session["actual_end"]
+        hours =  tutoring_hours_earned(session)
+        attendance_count = len(
+            get_session_attendance(
+                session["id"]
+            )
         )
-
         rows.append({
 
             "ID": session["id"],
@@ -870,7 +1059,9 @@ def admin_sessions():
             "Date": session["date"],
             "Status": session["status"],
             "Hours": round(hours, 2)
-
+            "Students Registered": len(session.get("student_ids", [])),
+            "Students Attended": attendance_count,
+            "Hours Earned": round(hours, 2)
         })
 
     st.dataframe(
@@ -878,7 +1069,6 @@ def admin_sessions():
         use_container_width=True,
         hide_index=True
     )
-
 
 # ============================================================
 # ADMIN REPORTS
@@ -891,124 +1081,353 @@ def admin_reports():
         unsafe_allow_html=True
     )
 
-    st.subheader("Tutor Hours")
+    st.markdown(
+        '<div class="subtitle">'
+        'Tutoring, classroom support and attendance reports'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-    rows = []
+    tab1, tab2, tab3 = st.tabs([
+        "Overall Summary",
+        "Tutor Drilldown",
+        "Student Report"
+    ])
 
-    for tutor in USERS["tutors"]:
+    # ========================================================
+    # OVERALL
+    # ========================================================
 
-        tutoring_hours = 0
-        class_hours = 0
+    with tab1:
+
+        total_tutoring_hours = 0
+        total_class_hours = 0
 
         for session in st.session_state.sessions:
 
-            if session["tutor_id"] == tutor["id"]:
-
-                tutoring_hours += calculate_hours(
-                    session["actual_start"],
-                    session["actual_end"]
-                )
+            total_tutoring_hours += (
+                tutoring_hours_earned(session)
+            )
 
         for attendance in st.session_state.attendance:
 
             if (
-                attendance["tutor_id"] == tutor["id"]
-                and attendance["type"] == "Class Support"
+                attendance["type"] == "Class Support"
             ):
 
-                class_hours += calculate_hours(
+                total_class_hours += calculate_hours(
                     attendance["check_in"],
                     attendance["check_out"]
                 )
 
-        rows.append({
+        total_hours = (
+            total_tutoring_hours
+            + total_class_hours
+        )
 
-            "Tutor ID": tutor["id"],
-            "Tutor": tutor["name"],
-            "Tutoring Hours": round(
-                tutoring_hours,
-                2
-            ),
-            "Class Support Hours": round(
-                class_hours,
-                2
-            ),
-            "Total Hours": round(
-                tutoring_hours + class_hours,
-                2
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "Tutoring Hours",
+            f"{total_tutoring_hours:.2f}"
+        )
+
+        c2.metric(
+            "Class Support Hours",
+            f"{total_class_hours:.2f}"
+        )
+
+        c3.metric(
+            "Total Tutor Hours",
+            f"{total_hours:.2f}"
+        )
+
+        c4.metric(
+            "Tutoring Sessions",
+            len(st.session_state.sessions)
+        )
+
+        st.divider()
+
+        rows = []
+
+        for tutor in USERS["tutors"]:
+
+            tutoring_hours = sum(
+                tutoring_hours_earned(s)
+                for s in st.session_state.sessions
+                if s["tutor_id"] == tutor["id"]
             )
 
-        })
+            class_hours = sum(
+                calculate_hours(
+                    a["check_in"],
+                    a["check_out"]
+                )
+                for a in st.session_state.attendance
+                if (
+                    a["type"] == "Class Support"
+                    and a["tutor_id"] == tutor["id"]
+                )
+            )
 
-    df = pd.DataFrame(rows)
+            rows.append({
 
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True
-    )
+                "Tutor":
+                    tutor["name"],
 
-    csv = df.to_csv(index=False)
+                "Tutoring Hours":
+                    round(
+                        tutoring_hours,
+                        2
+                    ),
 
-    st.download_button(
-        "Download CSV",
-        csv,
-        "tutor_hours.csv",
-        "text/csv"
-    )
+                "Class Support Hours":
+                    round(
+                        class_hours,
+                        2
+                    ),
 
-    st.divider()
+                "Total Hours":
+                    round(
+                        tutoring_hours + class_hours,
+                        2
+                    )
 
-    st.subheader(
-        "Classroom Support Attendance"
-    )
-
-    class_rows = []
-
-    for attendance in st.session_state.attendance:
-
-        if attendance["type"] != "Class Support":
-            continue
-
-        tutor = get_tutor(
-            attendance["tutor_id"]
-        )
-
-        c = get_class(
-            attendance["class_id"]
-        )
-
-        hours = calculate_hours(
-            attendance["check_in"],
-            attendance["check_out"]
-        )
-
-        class_rows.append({
-
-            "Tutor": tutor["name"] if tutor else "",
-            "Course": c["course"] if c else "",
-            "Class": c["title"] if c else "",
-            "Date": c["date"] if c else "",
-            "Check In": attendance["check_in"],
-            "Check Out": attendance["check_out"],
-            "Hours": round(hours, 2)
-
-        })
-
-    if class_rows:
+            })
 
         st.dataframe(
-            pd.DataFrame(class_rows),
+            pd.DataFrame(rows),
             use_container_width=True,
             hide_index=True
         )
 
-    else:
+    # ========================================================
+    # TUTOR DRILLDOWN
+    # ========================================================
 
-        st.info(
-            "No classroom-support attendance yet."
+    with tab2:
+
+        tutor_options = {
+            tutor["id"]: tutor["name"]
+            for tutor in USERS["tutors"]
+        }
+
+        selected_tutor_id = st.selectbox(
+            "Tutor",
+            options=list(tutor_options.keys()),
+            format_func=lambda tid:
+                f"{tid} — {tutor_options[tid]}",
+            key="report_tutor"
         )
 
+        sessions = [
+
+            s for s in st.session_state.sessions
+
+            if s["tutor_id"] == selected_tutor_id
+
+        ]
+
+        # ----------------------------------------------------
+        # Only completed / credited sessions
+        # ----------------------------------------------------
+
+        sessions = [
+            s for s in sessions
+            if tutoring_hours_earned(s) > 0
+        ]
+
+        sessions.sort(
+            key=lambda s: s["scheduled_start"]
+        )
+
+        cumulative_hours = 0
+        current_group = 1
+
+        rows = []
+
+        for session in sessions:
+
+            hours = tutoring_hours_earned(
+                session
+            )
+
+            # Group according to cumulative hours
+            group_number = (
+                int(cumulative_hours // 5)
+                + 1
+            )
+
+            cumulative_hours += hours
+
+            rows.append({
+
+                "Group":
+                    f"Group {group_number}",
+
+                "Date":
+                    session["date"],
+
+                "Session":
+                    session["title"],
+
+                "Start":
+                    session["actual_start"],
+
+                "End":
+                    session["actual_end"],
+
+                "Students Attended":
+                    len(
+                        get_session_attendance(
+                            session["id"]
+                        )
+                    ),
+
+                "Hours":
+                    round(
+                        hours,
+                        2
+                    ),
+
+                "Cumulative Hours":
+                    round(
+                        cumulative_hours,
+                        2
+                    )
+
+            })
+
+        if rows:
+
+            st.dataframe(
+                pd.DataFrame(rows),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.metric(
+                "Total Tutoring Hours",
+                f"{cumulative_hours:.2f}"
+            )
+
+        else:
+
+            st.info(
+                "This tutor has no credited tutoring hours yet."
+            )
+
+    # ========================================================
+    # STUDENT REPORT
+    # ========================================================
+
+    with tab3:
+
+        student_options = {
+            student["id"]: student["name"]
+            for student in USERS["students"]
+        }
+
+        selected_student_id = st.selectbox(
+            "Student",
+            options=list(student_options.keys()),
+            format_func=lambda sid:
+                f"{sid} — {student_options[sid]}",
+            key="report_student"
+        )
+
+        records = [
+
+            a for a in st.session_state.attendance
+
+            if (
+                a["student_id"] == selected_student_id
+                and a["type"] == "Tutoring"
+            )
+
+        ]
+
+        records.sort(
+            key=lambda a: a["check_in"]
+        )
+
+        rows = []
+
+        for attendance in records:
+
+            session = get_session(
+                attendance["session_id"]
+            )
+
+            tutor = (
+                get_tutor(
+                    session["tutor_id"]
+                )
+                if session
+                else None
+            )
+
+            rows.append({
+
+                "Date":
+                    (
+                        session["date"]
+                        if session
+                        else ""
+                    ),
+
+                "Session":
+                    (
+                        session["title"]
+                        if session
+                        else ""
+                    ),
+
+                "Tutor":
+                    (
+                        tutor["name"]
+                        if tutor
+                        else ""
+                    ),
+
+                "Scheduled":
+                    (
+                        session["scheduled_start"]
+                        .strftime("%H:%M")
+                        + " - "
+                        + session["scheduled_end"]
+                        .strftime("%H:%M")
+                        if session
+                        else ""
+                    ),
+
+                "Attendance":
+                    attendance["check_in"],
+
+                "Status":
+                    attendance["status"]
+
+            })
+
+        if rows:
+
+            st.dataframe(
+                pd.DataFrame(rows),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.metric(
+                "Sessions Attended",
+                len(rows)
+            )
+
+        else:
+
+            st.info(
+                "This student has no tutoring attendance records."
+            )
 
 # ============================================================
 # TUTOR DASHBOARD
@@ -1037,10 +1456,7 @@ def tutor_dashboard():
 
         if session["tutor_id"] == tutor_id:
 
-            tutoring_hours += calculate_hours(
-                session["actual_start"],
-                session["actual_end"]
-            )
+            tutoring_hours +=  tutoring_hours_earned(session)
 
     for attendance in st.session_state.attendance:
 
@@ -1501,7 +1917,7 @@ def tutor_sessions():
 
             students = []
 
-            for sid in session["student_ids"]:
+            for sid in session.get("student_ids", []):
 
                 student = get_student(sid)
 
@@ -1510,10 +1926,18 @@ def tutor_sessions():
                         student["name"]
                     )
 
-            st.write(
-                "Students: "
-                + ", ".join(students)
-            )
+            if students:
+
+                st.write(
+                    "Registered students: "
+                    + ", ".join(students)
+                )
+
+            else:
+
+                st.info(
+                    "No students registered yet."
+                )
 
             # ====================================================
             # SCHEDULED
@@ -1730,10 +2154,7 @@ def tutor_sessions():
                     and session.get("actual_end")
                 ):
 
-                    hours = calculate_hours(
-                        session["actual_start"],
-                        session["actual_end"]
-                    )
+                    hours =  tutoring_hours_earned(session)
 
                     st.info(
                         f"Completed — {hours:.2f} hours"
@@ -1744,8 +2165,6 @@ def tutor_sessions():
                     st.info(
                         "Completed"
                     )
-
-
 
 
 
@@ -1767,7 +2186,8 @@ def create_tutoring_session():
 
     st.markdown(
         '<div class="subtitle">'
-        'Create an individual or small-group tutoring session'
+        'Set a time when you are available for tutoring. '
+        'Students can then discover and register for the session.'
         '</div>',
         unsafe_allow_html=True
     )
@@ -1775,20 +2195,6 @@ def create_tutoring_session():
     title = st.text_input(
         "Session title",
         placeholder="Java Help"
-    )
-
-    students = st.multiselect(
-
-        "Students",
-
-        options=[
-            s["id"]
-            for s in USERS["students"]
-        ],
-
-        format_func=lambda sid:
-            f"{get_student(sid)['name']}"
-
     )
 
     session_date = st.date_input(
@@ -1823,66 +2229,89 @@ def create_tutoring_session():
                 "Enter a session title."
             )
 
-        elif not students:
+            return
 
-            st.error(
-                "Select at least one student."
-            )
-
-        elif end <= start:
+        if end <= start:
 
             st.error(
                 "End time must be after start time."
             )
 
-        else:
+            return
 
-            new_id = (
-                "SES"
-                + uuid.uuid4().hex[:6].upper()
+        scheduled_start = datetime.combine(
+            session_date,
+            start
+        )
+
+        scheduled_end = datetime.combine(
+            session_date,
+            end
+        )
+
+        # ----------------------------------------------------
+        # A session must be long enough to permit the
+        # 15-minute default tutoring period.
+        # ----------------------------------------------------
+
+        if (
+            scheduled_end - scheduled_start
+        ) < timedelta(minutes=15):
+
+            st.error(
+                "A tutoring session must be at least "
+                "15 minutes long."
             )
 
-            st.session_state.sessions.append({
+            return
 
-                "id": new_id,
+        new_id = (
+            "SES"
+            + uuid.uuid4().hex[:6].upper()
+        )
 
-                "type": "Individual Tutoring",
+        new_session = {
 
-                "tutor_id": tutor_id,
+            "id": new_id,
 
-                "student_ids": students,
+            "type": "Individual Tutoring",
 
-                "title": title,
+            "tutor_id": tutor_id,
 
-                "date": session_date,
+            # Students register themselves later
+            "student_ids": [],
 
-                "scheduled_start":
-                    datetime.combine(
-                        session_date,
-                        start
-                    ),
+            "title": title,
 
-                "scheduled_end":
-                    datetime.combine(
-                        session_date,
-                        end
-                    ),
+            "date": session_date,
 
-                "actual_start": None,
+            "scheduled_start": scheduled_start,
 
-                "actual_end": None,
+            "scheduled_end": scheduled_end,
 
-                "status": "Scheduled",
+            "actual_start": None,
 
-                "qr_token": None
+            "actual_end": None,
 
-            })
-            add_session_to_sheet(st.session_state.sessions[-1])
+            "status": "Scheduled",
 
-            st.success(
-                "Tutoring session created."
-            )
+            "qr_token": None
+        }
 
+        st.session_state.sessions.append(
+            new_session
+        )
+
+        add_session_to_sheet(
+            new_session
+        )
+
+        st.success(
+            "Tutoring session created successfully. "
+            "Students can now register for it."
+        )
+
+        st.rerun()
 
 # ============================================================
 # STUDENT DASHBOARD
@@ -1966,7 +2395,6 @@ def student_dashboard():
                 unsafe_allow_html=True
             )
 
-
 # ============================================================
 # STUDENT AVAILABLE SESSIONS
 # ============================================================
@@ -1980,105 +2408,223 @@ def student_available_sessions():
         unsafe_allow_html=True
     )
 
-    sessions = [
+    st.markdown(
+        '<div class="subtitle">'
+        'Browse tutoring sessions and register for one that '
+        'fits your schedule.'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-        s for s in st.session_state.sessions
+    now = datetime.now()
 
-        if (
-            student_id in s["student_ids"]
-            and s["status"] == "Active"
+    available_sessions = []
+
+    for session in st.session_state.sessions:
+
+        # Only scheduled sessions can be registered for
+        if session["status"] != "Scheduled":
+            continue
+
+        # Do not show sessions that have already started
+        if session["scheduled_start"] <= now:
+            continue
+
+        # Do not show sessions that already have this student
+        if student_id in [
+            str(sid)
+            for sid in session.get("student_ids", [])
+        ]:
+            continue
+
+        available_sessions.append(session)
+
+    # --------------------------------------------------------
+    # Calendar
+    # --------------------------------------------------------
+
+    events = []
+
+    for session in available_sessions:
+
+        events.append({
+
+            "title":
+                f"{session['title']} — "
+                f"{get_tutor(session['tutor_id'])['name']}",
+
+            "start":
+                session["scheduled_start"].isoformat(),
+
+            "end":
+                session["scheduled_end"].isoformat(),
+
+            "id":
+                session["id"],
+
+            "backgroundColor":
+                "#2563eb",
+
+            "borderColor":
+                "#2563eb"
+
+        })
+
+    st.subheader("Calendar")
+
+    if events:
+
+        calendar_options = {
+
+            "initialView":
+                "dayGridMonth",
+
+            "headerToolbar": {
+                "left":
+                    "prev,next today",
+
+                "center":
+                    "title",
+
+                "right":
+                    "dayGridMonth,timeGridWeek"
+            },
+
+            "height":
+                650,
+
+            "slotMinTime":
+                "08:00:00",
+
+            "slotMaxTime":
+                "22:00:00",
+
+            "allDaySlot":
+                False
+        }
+
+        calendar(
+            events=events,
+            options=calendar_options
         )
 
-    ]
-
-    if not sessions:
+    else:
 
         st.info(
-            "You have no active tutoring sessions."
+            "There are currently no open tutoring sessions."
+        )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # Open sessions
+    # --------------------------------------------------------
+
+    st.subheader("Open Tutoring Sessions")
+
+    if not available_sessions:
+
+        st.info(
+            "No sessions are currently available "
+            "for registration."
         )
 
         return
 
-    for session in sessions:
+    # Chronological order
+    available_sessions.sort(
+        key=lambda s: s["scheduled_start"]
+    )
+
+    for session in available_sessions:
 
         tutor = get_tutor(
             session["tutor_id"]
         )
 
-        st.markdown(
-            f"""
-            <div class="session-card">
-                <strong>{session['title']}</strong><br>
-                Tutor: {tutor['name']}<br>
-                Session ID: {session['id']}
-            </div>
-            """,
-            unsafe_allow_html=True
+        registered = len(
+            session.get("student_ids", [])
         )
 
-        already_present = any(
+        with st.container(border=True):
 
-            a["session_id"] == session["id"]
-            and a["student_id"] == student_id
-
-            for a in st.session_state.attendance
-
-        )
-
-        if already_present:
-
-            st.success(
-                "✓ Your attendance has been recorded."
+            st.subheader(
+                session["title"]
             )
 
-        else:
+            st.write(
+                f"**Tutor:** "
+                f"{tutor['name'] if tutor else ''}"
+            )
+
+            st.write(
+                f"📅 "
+                f"{session['scheduled_start'].strftime('%Y-%m-%d')}"
+            )
+
+            st.write(
+                f"🕐 "
+                f"{session['scheduled_start'].strftime('%H:%M')} - "
+                f"{session['scheduled_end'].strftime('%H:%M')}"
+            )
+
+            st.write(
+                f"👥 Registered students: {registered}"
+            )
 
             if st.button(
-                "Confirm Attendance",
-                key=f"attend_{session['id']}"
+                "Register for Session",
+                key=f"register_{session['id']}",
+                type="primary"
             ):
 
-                st.session_state.attendance.append({
-
-                    "id":
-                        "ATT"
-                        + uuid.uuid4().hex[:8],
-
-                    "type":
-                        "Tutoring",
-
-                    "session_id":
-                        session["id"],
-
-                    "class_id":
-                        None,
-
-                    "student_id":
-                        student_id,
-
-                    "tutor_id":
-                        session["tutor_id"],
-
-                    "check_in":
-                        datetime.now(),
-
-                    "check_out":
-                        None,
-
-                    "status":
-                        "Present"
-
-                })
-                add_attendance_to_sheet(
-                    st.session_state.attendance[-1]
-                )   
-                
-                st.success(
-                    "Attendance confirmed."
+                # Re-fetch session state before modifying it
+                current_session = get_session(
+                    session["id"]
                 )
 
-                st.rerun()
+                if not current_session:
 
+                    st.error(
+                        "Session no longer exists."
+                    )
+
+                    continue
+
+                if current_session["status"] != "Scheduled":
+
+                    st.error(
+                        "This session is no longer available."
+                    )
+
+                    continue
+
+                if student_id not in [
+                    str(sid)
+                    for sid in current_session.get(
+                        "student_ids", []
+                    )
+                ]:
+
+                    current_session.setdefault(
+                        "student_ids",
+                        []
+                    ).append(student_id)
+
+                    update_session_in_sheet(
+                        current_session["id"],
+                        {
+                            "student_ids":
+                                current_session["student_ids"]
+                        }
+                    )
+
+                    st.success(
+                        "You have successfully registered "
+                        "for this tutoring session."
+                    )
+
+                    st.rerun()
 
 # ============================================================
 # STUDENT ATTENDANCE
@@ -2390,6 +2936,27 @@ def tutoring_qr_page(session_id, token):
                 "tutoring session."
             )
 
+            return
+        # -----------------------------------------------
+        # IMPORTANT:
+        # Verify that session has started
+        # -----------------------------------------------
+        if datetime.now() < session["scheduled_start"]:
+            st.error(
+                "Attendance cannot be recorded before "
+                "the scheduled session start."
+            )
+            return
+
+        maximum_end = (
+            session["scheduled_end"]
+            + timedelta(minutes=15)
+        )
+
+        if datetime.now() > maximum_end:
+            st.error(
+                "The attendance period for this session has ended."
+            )
             return
 
         # -----------------------------------------------
@@ -2712,7 +3279,99 @@ def class_qr_page(class_id, token):
 
 
 
+# ============================================================
+# TUTORING SESSION HELPERS
+# ============================================================
 
+def session_has_attendance(session_id):
+    """
+    Returns True if at least one student has confirmed
+    attendance for this tutoring session.
+    """
+
+    return any(
+        a["type"] == "Tutoring"
+        and str(a["session_id"]) == str(session_id)
+        for a in st.session_state.attendance
+    )
+
+
+def get_session_attendance(session_id):
+    """
+    Return all student attendance records for a session.
+    """
+
+    return [
+        a for a in st.session_state.attendance
+        if (
+            a["type"] == "Tutoring"
+            and str(a["session_id"]) == str(session_id)
+        )
+    ]
+
+
+def tutoring_hours_earned(session):
+    """
+    A tutoring session only counts toward tutor hours
+    if at least one student scanned the QR code.
+
+    The duration is actual_end - actual_start.
+    """
+
+    if not session_has_attendance(session["id"]):
+        return 0
+
+    return tutoring_hours_earned(session)
+
+
+def get_tutor_commitments(tutor_id):
+    """
+    Return both classroom commitments and tutoring
+    session commitments for a tutor.
+    """
+
+    commitments = []
+
+    # Classroom commitments
+    for signup in st.session_state.class_signups:
+
+        if signup["tutor_id"] != tutor_id:
+            continue
+
+        c = get_class(signup["class_id"])
+
+        if c:
+            commitments.append({
+                "type": "Class Support",
+                "title": f"{c['course']} — {c['title']}",
+                "date": c["date"],
+                "start": c["start"],
+                "end": c["end"],
+                "location": c["room"],
+                "status": c.get("status", "Open")
+            })
+
+    # Tutoring session commitments
+    for session in st.session_state.sessions:
+
+        if session["tutor_id"] != tutor_id:
+            continue
+
+        commitments.append({
+            "type": "Tutoring",
+            "title": session["title"],
+            "date": session["date"],
+            "start": session["scheduled_start"],
+            "end": session["scheduled_end"],
+            "location": "",
+            "status": session["status"]
+        })
+
+    commitments.sort(
+        key=lambda x: x["start"]
+    )
+
+    return commitments
 
 
 
