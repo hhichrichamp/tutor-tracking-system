@@ -2298,11 +2298,11 @@ def create_tutoring_session():
             "qr_token": None
         }
 
-        st.session_state.sessions.append(session)
-        add_session_to_sheet(session)
+        st.session_state.sessions.append(new_session)
+        add_session_to_sheet(new_session)
 
         st.session_state.session_created_message = (
-            f"Session '{session['title']}' created successfully."
+            f"Session '{new_session['title']}' created successfully."
         )
 
         st.rerun()
