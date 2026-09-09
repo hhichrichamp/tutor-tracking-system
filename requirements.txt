@@ -4,4 +4,3 @@ qrcode[pil]
 gspread
 google-auth
 streamlit-calendar
-zoneinfo
