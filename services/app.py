@@ -1634,7 +1634,7 @@ def tutor_available_classes():
                     "This class is full."
                 )
 
-            elif c["start"] < now_local():
+            elif ensure_local_datetime(c["start"]) < now_local():
 
                 st.info(
                     "This class has already started."
@@ -1772,8 +1772,8 @@ def tutor_commitments():
             else:
 
                 if (
-                    now_local() >= c["start"]
-                    and now_local() <= c["end"] + timedelta(hours=1)
+                    now_local() >= ensure_local_datetime(c["start"])
+                    and now_local() <= ensure_local_datetime(c["end"]) + timedelta(hours=1)
                 ):
 
                     st.info(
@@ -3360,8 +3360,8 @@ def get_tutor_commitments(tutor_id):
                 "type": "Class Support",
                 "title": f"{c['course']} — {c['title']}",
                 "date": c["date"],
-                "start": c["start"],
-                "end": c["end"],
+                "start": ensure_local_datetime(c["start"]),
+                "end": ensure_local_datetime(c["end"]),
                 "location": c["room"],
                 "status": c.get("status", "Open")
             })
