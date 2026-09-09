@@ -1058,7 +1058,7 @@ def admin_sessions():
             "Students": ", ".join(student_names),
             "Date": session["date"],
             "Status": session["status"],
-            "Hours": round(hours, 2)
+            "Hours": round(hours, 2),
             "Students Registered": len(session.get("student_ids", [])),
             "Students Attended": attendance_count,
             "Hours Earned": round(hours, 2)
