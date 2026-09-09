@@ -948,10 +948,10 @@ def admin_tutors():
 
                 "Scheduled":
                     (
-                        session["scheduled_start"]
+                        ensure_local_datetime(session["scheduled_start"])
                         .strftime("%H:%M")
                         + " - "
-                        + session["scheduled_end"]
+                        + ensure_local_datetime(session["scheduled_end"])
                         .strftime("%H:%M")
                     ),
 
@@ -1389,10 +1389,10 @@ def admin_reports():
 
                 "Scheduled":
                     (
-                        session["scheduled_start"]
+                        ensure_local_datetime(session["scheduled_start"])
                         .strftime("%H:%M")
                         + " - "
-                        + session["scheduled_end"]
+                        + ensure_local_datetime(session["scheduled_end"])
                         .strftime("%H:%M")
                         if session
                         else ""
@@ -1860,8 +1860,8 @@ def tutor_sessions():
         # SCHEDULED START / END
         # ====================================================
 
-        scheduled_start = session["scheduled_start"]
-        scheduled_end = session["scheduled_end"]
+        scheduled_start = ensure_local_datetime(session["scheduled_start"])
+        scheduled_end = ensure_local_datetime(session["scheduled_end"])
 
         # Convert strings if necessary
         if isinstance(scheduled_start, str):
@@ -2421,7 +2421,7 @@ def student_available_sessions():
             continue
 
         # Do not show sessions that have already started
-        if session["scheduled_start"] <= now:
+        if ensure_local_datetime(session["scheduled_start"]) <= now:
             continue
 
         # Do not show sessions that already have this student
@@ -2448,10 +2448,10 @@ def student_available_sessions():
                 f"{get_tutor(session['tutor_id'])['name']}",
 
             "start":
-                session["scheduled_start"].isoformat(),
+                ensure_local_datetime(session["scheduled_start"]).isoformat(),
 
             "end":
-                session["scheduled_end"].isoformat(),
+                ensure_local_datetime(session["scheduled_end"]).isoformat(),
 
             "id":
                 session["id"],
@@ -2935,7 +2935,7 @@ def tutoring_qr_page(session_id, token):
         # IMPORTANT:
         # Verify that session has started
         # -----------------------------------------------
-        if now_local() < session["scheduled_start"]:
+        if now_local() < ensure_local_datetime(session["scheduled_start"]):
             st.error(
                 "Attendance cannot be recorded before "
                 "the scheduled session start."
@@ -2943,7 +2943,7 @@ def tutoring_qr_page(session_id, token):
             return
 
         maximum_end = (
-            session["scheduled_end"]
+            ensure_local_datetime(session["scheduled_end"])
             + timedelta(minutes=15)
         )
 
@@ -3321,6 +3321,24 @@ def tutoring_hours_earned(session):
         )
 
 
+def ensure_local_datetime(value):
+    """Convert a datetime/string to a timezone-aware Montréal datetime."""
+
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        dt = datetime.fromisoformat(str(value))
+
+    # Google Sheets may give us a naive datetime.
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=APP_TIMEZONE)
+
+    return dt.astimezone(APP_TIMEZONE)
+
+
 def get_tutor_commitments(tutor_id):
     """
     Return both classroom commitments and tutoring
@@ -3358,8 +3376,8 @@ def get_tutor_commitments(tutor_id):
             "type": "Tutoring",
             "title": session["title"],
             "date": session["date"],
-            "start": session["scheduled_start"],
-            "end": session["scheduled_end"],
+            "start": ensure_local_datetime(session["scheduled_start"]),
+            "end": ensure_local_datetime(session["scheduled_end"]),
             "location": "",
             "status": session["status"]
         })
