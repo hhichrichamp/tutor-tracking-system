@@ -2920,17 +2920,17 @@ def tutoring_qr_page(session_id, token):
         # Verify student belongs to this session
         # -----------------------------------------------
 
-        if student_id not in [
-            str(sid)
-            for sid in session["student_ids"]
-        ]:
+        # if student_id not in [
+        #     str(sid)
+        #     for sid in session["student_ids"]
+        # ]:
 
-            st.error(
-                "You are not registered for this "
-                "tutoring session."
-            )
+        #     st.error(
+        #         "You are not registered for this "
+        #         "tutoring session."
+        #     )
 
-            return
+        #     return
         # -----------------------------------------------
         # IMPORTANT:
         # Verify that session has started
