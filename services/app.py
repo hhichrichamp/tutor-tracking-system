@@ -15,8 +15,7 @@ from datetime import datetime, timedelta, date, time
 APP_TIMEZONE = ZoneInfo("America/Toronto")
 def now_local():
     """Return current time in the application's local timezone."""
-    return now_local()
-
+    return datetime.now(APP_TIMEZONE)
 
 from google_sheets import (
     read_classes_from_sheet,
