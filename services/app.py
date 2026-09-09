@@ -7,9 +7,15 @@ import json
 import gspread
 
 from streamlit_calendar import calendar
+from zoneinfo import ZoneInfo
 
 from urllib.parse import urlencode
 from datetime import datetime, timedelta, date, time
+
+APP_TIMEZONE = ZoneInfo("America/Toronto")
+def now_local():
+    """Return current time in the application's local timezone."""
+    return now_local()
 
 
 from google_sheets import (
@@ -157,7 +163,7 @@ def initialize_data():
 
     if "sessions" not in st.session_state:
 
-        now = datetime.now()
+        now = now_local()
 
         st.session_state.sessions = read_sessions_from_sheet()
 
@@ -167,7 +173,7 @@ def initialize_data():
 
     if "classes" not in st.session_state:
 
-        now = datetime.now()
+        now = now_local()
 
         st.session_state.classes =read_classes_from_sheet()
 
@@ -1525,7 +1531,7 @@ def tutor_dashboard():
             signup["class_id"]
         )
 
-        if c and c["start"] >= datetime.now():
+        if c and c["start"] >= now_local():
 
             upcoming.append(c)
 
@@ -1629,7 +1635,7 @@ def tutor_available_classes():
                     "This class is full."
                 )
 
-            elif c["start"] < datetime.now():
+            elif c["start"] < now_local():
 
                 st.info(
                     "This class has already started."
@@ -1647,7 +1653,7 @@ def tutor_available_classes():
                         "id": "SGN" + uuid.uuid4().hex[:8].upper(),   # ← add this
                         "class_id": c["id"],
                         "tutor_id": tutor_id,
-                        "signup_time": datetime.now()
+                        "signup_time": now_local()
                     })
                     add_class_signup_to_sheet(st.session_state.class_signups[-1])
 
@@ -1752,7 +1758,7 @@ def tutor_commitments():
                         key=f"class_checkout_{c['id']}"
                     ):
 
-                        attendance["check_out"] = datetime.now()
+                        attendance["check_out"] = now_local()
                         # ← add this right after:
                         update_attendance_checkout_in_sheet(
                             attendance["id"],
@@ -1767,8 +1773,8 @@ def tutor_commitments():
             else:
 
                 if (
-                    datetime.now() >= c["start"]
-                    and datetime.now() <= c["end"] + timedelta(hours=1)
+                    now_local() >= c["start"]
+                    and now_local() <= c["end"] + timedelta(hours=1)
                 ):
 
                     st.info(
@@ -1797,7 +1803,7 @@ def tutor_commitments():
 
                             "tutor_id": tutor_id,
 
-                            "check_in": datetime.now(),
+                            "check_in": now_local(),
 
                             "check_out": None,
 
@@ -1936,7 +1942,7 @@ def tutor_sessions():
 
             if session["status"] == "Scheduled":
 
-                now = datetime.now()
+                now = now_local()
 
                 # --------------------------------------------
                 # Too early
@@ -1972,7 +1978,7 @@ def tutor_sessions():
                         key=f"start_{session['id']}"
                     ):
 
-                        now = datetime.now()
+                        now = now_local()
 
                         # ------------------------------------
                         # Double-check the time.
@@ -2083,7 +2089,7 @@ def tutor_sessions():
                     key=f"end_{session['id']}"
                 ):
 
-                    now = datetime.now()
+                    now = now_local()
 
                     # ------------------------------------------------
                     # Tutor can manually end the session only up to
@@ -2167,6 +2173,10 @@ def tutor_sessions():
 def create_tutoring_session():
 
     tutor_id = st.session_state.user["id"]
+
+    if "session_created_message" in st.session_state:
+        st.success(st.session_state.session_created_message)
+        del st.session_state.session_created_message
 
     st.markdown(
         '<div class="main-title">'
@@ -2289,17 +2299,11 @@ def create_tutoring_session():
             "qr_token": None
         }
 
-        st.session_state.sessions.append(
-            new_session
-        )
+        st.session_state.sessions.append(session)
+        add_session_to_sheet(session)
 
-        add_session_to_sheet(
-            new_session
-        )
-
-        st.success(
-            "Tutoring session created successfully. "
-            "Students can now register for it."
+        st.session_state.session_created_message = (
+            f"Session '{session['title']}' created successfully."
         )
 
         st.rerun()
@@ -2407,7 +2411,7 @@ def student_available_sessions():
         unsafe_allow_html=True
     )
 
-    now = datetime.now()
+    now = now_local()
 
     available_sessions = []
 
@@ -2932,7 +2936,7 @@ def tutoring_qr_page(session_id, token):
         # IMPORTANT:
         # Verify that session has started
         # -----------------------------------------------
-        if datetime.now() < session["scheduled_start"]:
+        if now_local() < session["scheduled_start"]:
             st.error(
                 "Attendance cannot be recorded before "
                 "the scheduled session start."
@@ -2944,7 +2948,7 @@ def tutoring_qr_page(session_id, token):
             + timedelta(minutes=15)
         )
 
-        if datetime.now() > maximum_end:
+        if now_local() > maximum_end:
             st.error(
                 "The attendance period for this session has ended."
             )
@@ -2997,7 +3001,7 @@ def tutoring_qr_page(session_id, token):
                 session["tutor_id"],
 
             "check_in":
-                datetime.now(),
+                now_local(),
 
             "check_out":
                 None,
@@ -3028,7 +3032,7 @@ def tutoring_qr_page(session_id, token):
 
         st.write(
             f"**Time:** "
-            f"{datetime.now().strftime('%H:%M:%S')}"
+            f"{now_local().strftime('%H:%M:%S')}"
         )
 
         st.balloons()
@@ -3187,7 +3191,7 @@ def class_qr_page(class_id, token):
                     tutor_id,
 
                 "check_in":
-                    datetime.now(),
+                    now_local(),
 
                 "check_out":
                     None,
@@ -3224,7 +3228,7 @@ def class_qr_page(class_id, token):
             use_container_width=True
         ):
 
-            attendance["check_out"] = datetime.now()
+            attendance["check_out"] = now_local()
 
             hours = calculate_hours(
                 attendance["check_in"],
