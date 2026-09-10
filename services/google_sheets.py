@@ -101,10 +101,15 @@ def read_class_signups_from_sheet():
     records = ws.get_all_records()
     signups = []
     for r in records:
+        tutor_id = r["tutor_id"].strip()
+        # Remove "ID_" prefix if present
+        if tutor_id.startswith("ID_"):
+            tutor_id = tutor_id[3:]  # Remove first 3 characters
+        
         signups.append({
             "id": r["id"].strip(),
             "class_id": r["class_id"].strip(),
-            "tutor_id": r["tutor_id"].strip(),  # ← Add .strip() here
+            "tutor_id": tutor_id,
             "signup_time": datetime.fromisoformat(r["signup_time"]),
         })
     return signups
@@ -116,7 +121,7 @@ def add_class_signup_to_sheet(signup_data):
     ws.append_row([
         signup_data["id"],                                    # add this field when you create signups
         signup_data["class_id"],
-        signup_data["tutor_id"],
+        "ID_"+signup_data["tutor_id"],
         signup_data["signup_time"].strftime("%Y-%m-%d %H:%M:%S")
     ],
         value_input_option="RAW")
@@ -130,10 +135,14 @@ def read_sessions_from_sheet():
     records = ws.get_all_records()
     sessions = []
     for r in records:
+        tutor_id = r["tutor_id"].strip()
+        # Remove "ID_" prefix if present
+        if tutor_id.startswith("ID_"):
+            tutor_id = tutor_id[3:]  # Remove first 3 characters
         sessions.append({
             "id": r["id"].strip(),
             "type": r["type"].strip(),
-            "tutor_id": r["tutor_id"].strip(),  # ← Add .strip() here
+            "tutor_id": tutor_id,  # ← Add .strip() here
             "student_ids": [s.strip() for s in str(r["student_ids"]).split(",") if s.strip()],
             "title": r["title"].strip(),
             "date": date.fromisoformat(r["date"]),
@@ -155,7 +164,7 @@ def add_session_to_sheet(session_data):
     ws.append_row([
         session_data["id"],
         session_data["type"],
-        session_data["tutor_id"],
+        "ID_"+session_data["tutor_id"],
         ",".join(str(s) for s in session_data["student_ids"]),
         session_data["title"],
         str(session_data["date"]),
@@ -194,13 +203,20 @@ def read_attendance_from_sheet():
     records = ws.get_all_records()
     attendance = []
     for r in records:
+        if (r["tutor_id"]):
+            tutor_id = r["tutor_id"].strip()
+            # Remove "ID_" prefix if present
+            if tutor_id.startswith("ID_"):
+                tutor_id = tutor_id[3:]  # Remove first 3 characters
+        else:
+            tutor_id = None
         attendance.append({
             "id": r["id"].strip(),
             "type": r["type"].strip(),
             "session_id": r["session_id"].strip() if r["session_id"] else None,
             "class_id": r["class_id"].strip() if r["class_id"] else None,
             "student_id": str(r["student_id"]).strip() if r["student_id"] else None,
-            "tutor_id": r["tutor_id"].strip() if r["tutor_id"] else None,
+            "tutor_id": tutor_id,
             "check_in": datetime.fromisoformat(r["check_in"]) if r["check_in"] else None,
             "check_out": datetime.fromisoformat(r["check_out"]) if r["check_out"] else None,
             "status": r["status"].strip(),
@@ -212,13 +228,19 @@ def add_attendance_to_sheet(attendance_data):
                 student_id | tutor_id | check_in | check_out | status"""
     spreadsheet = get_google_sheet()
     ws = spreadsheet.worksheet("Attendance")
+    
+    # Add "ID_" prefix to tutor_id if it's numeric
+    tutor_id = attendance_data["tutor_id"] or ""
+    if tutor_id and tutor_id.isdigit():
+        tutor_id = "ID_" + tutor_id
+    
     ws.append_row([
         attendance_data["id"],
         attendance_data["type"],
         attendance_data["session_id"] or "",
         attendance_data["class_id"] or "",
         attendance_data["student_id"] or "",
-        attendance_data["tutor_id"] or "",
+        tutor_id,
         attendance_data["check_in"].strftime("%Y-%m-%d %H:%M:%S") if attendance_data["check_in"] else "",
         attendance_data["check_out"].strftime("%Y-%m-%d %H:%M:%S") if attendance_data["check_out"] else "",
         attendance_data["status"]
