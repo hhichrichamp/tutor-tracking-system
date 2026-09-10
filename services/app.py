@@ -1449,7 +1449,7 @@ def tutor_dashboard():
 
 def tutor_available_classes():
 
-    tutor_id = st.session_state.user["id"]
+    tutor_id = str(st.session_state.user["id"]).strip()  # ← Ensure string
 
     st.markdown(
         '<div class="main-title">Available Classes</div>',
@@ -1475,7 +1475,7 @@ def tutor_available_classes():
         ]
 
         already_signed = any(
-            s["tutor_id"] == tutor_id
+            str(s["tutor_id"]).strip() == tutor_id  # ← Ensure string comparison
             for s in signups
         )
 
@@ -1533,11 +1533,10 @@ def tutor_available_classes():
                     key=f"signup_{c['id']}"
                 ):
 
-                    # in tutor_available_classes(), replace the append block:
                     st.session_state.class_signups.append({
-                        "id": "SGN" + uuid.uuid4().hex[:8].upper(),   # ← add this
+                        "id": "SGN" + uuid.uuid4().hex[:8].upper(),
                         "class_id": c["id"],
-                        "tutor_id": tutor_id,
+                        "tutor_id": tutor_id,  # ← Already a string
                         "signup_time": now_local()
                     })
                     add_class_signup_to_sheet(st.session_state.class_signups[-1])
@@ -1547,7 +1546,6 @@ def tutor_available_classes():
                     )
 
                     st.rerun()
-
 
 # ============================================================
 # MY COMMITMENTS
