@@ -102,9 +102,9 @@ def read_class_signups_from_sheet():
     signups = []
     for r in records:
         signups.append({
-            "id": r["id"],
-            "class_id": r["class_id"],
-            "tutor_id": r["tutor_id"],
+            "id": r["id"].strip(),
+            "class_id": r["class_id"].strip(),
+            "tutor_id": r["tutor_id"].strip(),  # ← Add .strip() here
             "signup_time": datetime.fromisoformat(r["signup_time"]),
         })
     return signups
@@ -131,18 +131,18 @@ def read_sessions_from_sheet():
     sessions = []
     for r in records:
         sessions.append({
-            "id": r["id"],
-            "type": r["type"],
-            "tutor_id": r["tutor_id"],
+            "id": r["id"].strip(),
+            "type": r["type"].strip(),
+            "tutor_id": r["tutor_id"].strip(),  # ← Add .strip() here
             "student_ids": [s.strip() for s in str(r["student_ids"]).split(",") if s.strip()],
-            "title": r["title"],
+            "title": r["title"].strip(),
             "date": date.fromisoformat(r["date"]),
             "scheduled_start": datetime.fromisoformat(r["scheduled_start"]),
             "scheduled_end": datetime.fromisoformat(r["scheduled_end"]),
             "actual_start": datetime.fromisoformat(r["actual_start"]) if r["actual_start"] else None,
             "actual_end": datetime.fromisoformat(r["actual_end"]) if r["actual_end"] else None,
-            "status": r["status"],
-            "qr_token": r["qr_token"] or None,
+            "status": r["status"].strip(),
+            "qr_token": r["qr_token"].strip() if r["qr_token"] else None,
         })
     return sessions
 
@@ -195,15 +195,15 @@ def read_attendance_from_sheet():
     attendance = []
     for r in records:
         attendance.append({
-            "id": r["id"],
-            "type": r["type"],
-            "session_id": r["session_id"] or None,
-            "class_id": r["class_id"] or None,
-            "student_id": str(r["student_id"]) if r["student_id"] else None,
-            "tutor_id": r["tutor_id"] or None,
+            "id": r["id"].strip(),
+            "type": r["type"].strip(),
+            "session_id": r["session_id"].strip() if r["session_id"] else None,
+            "class_id": r["class_id"].strip() if r["class_id"] else None,
+            "student_id": str(r["student_id"]).strip() if r["student_id"] else None,
+            "tutor_id": r["tutor_id"].strip() if r["tutor_id"] else None,
             "check_in": datetime.fromisoformat(r["check_in"]) if r["check_in"] else None,
             "check_out": datetime.fromisoformat(r["check_out"]) if r["check_out"] else None,
-            "status": r["status"],
+            "status": r["status"].strip(),
         })
     return attendance
 
