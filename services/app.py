@@ -1076,15 +1076,13 @@ def admin_sessions():
 def admin_reports():
 
     st.markdown(
-        '<div class="main-title">Reports</div>',
-        unsafe_html=True
+        '<div class="main-title">Reports</div>',unsafe_allow_html=True
     )
 
     st.markdown(
         '<div class="subtitle">'
         'Tutoring, classroom support and attendance reports'
-        '</div>',
-        unsafe_html=True
+        '</div>',          unsafe_allow_html=True
     )
 
     tab1, tab2, tab3 = st.tabs([
@@ -1312,7 +1310,7 @@ def admin_reports():
         else:
             st.info("This student has no tutoring attendance records.")
 
-            
+
 # ============================================================
 # TUTOR DASHBOARD
 # ============================================================
