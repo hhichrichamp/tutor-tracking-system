@@ -6,6 +6,9 @@ import uuid
 import json
 import gspread
 
+import openpyxl
+from io import BytesIO
+
 from streamlit_calendar import calendar
 from zoneinfo import ZoneInfo
 
@@ -1074,14 +1077,14 @@ def admin_reports():
 
     st.markdown(
         '<div class="main-title">Reports</div>',
-        unsafe_allow_html=True
+        unsafe_html=True
     )
 
     st.markdown(
         '<div class="subtitle">'
         'Tutoring, classroom support and attendance reports'
         '</div>',
-        unsafe_allow_html=True
+        unsafe_html=True
     )
 
     tab1, tab2, tab3 = st.tabs([
@@ -1100,48 +1103,23 @@ def admin_reports():
         total_class_hours = 0
 
         for session in st.session_state.sessions:
-
-            total_tutoring_hours += (
-                tutoring_hours_earned(session)
-            )
+            total_tutoring_hours += tutoring_hours_earned(session)
 
         for attendance in st.session_state.attendance:
-
-            if (
-                attendance["type"] == "Class Support"
-            ):
-
+            if attendance["type"] == "Class Support":
                 total_class_hours += calculate_hours(
                     attendance["check_in"],
                     attendance["check_out"]
                 )
 
-        total_hours = (
-            total_tutoring_hours
-            + total_class_hours
-        )
+        total_hours = total_tutoring_hours + total_class_hours
 
         c1, c2, c3, c4 = st.columns(4)
 
-        c1.metric(
-            "Tutoring Hours",
-            f"{total_tutoring_hours:.2f}"
-        )
-
-        c2.metric(
-            "Class Support Hours",
-            f"{total_class_hours:.2f}"
-        )
-
-        c3.metric(
-            "Total Tutor Hours",
-            f"{total_hours:.2f}"
-        )
-
-        c4.metric(
-            "Tutoring Sessions",
-            len(st.session_state.sessions)
-        )
+        c1.metric("Tutoring Hours", f"{total_tutoring_hours:.2f}")
+        c2.metric("Class Support Hours", f"{total_class_hours:.2f}")
+        c3.metric("Total Tutor Hours", f"{total_hours:.2f}")
+        c4.metric("Tutoring Sessions", len(st.session_state.sessions))
 
         st.divider()
 
@@ -1156,10 +1134,7 @@ def admin_reports():
             )
 
             class_hours = sum(
-                calculate_hours(
-                    a["check_in"],
-                    a["check_out"]
-                )
+                calculate_hours(a["check_in"], a["check_out"])
                 for a in st.session_state.attendance
                 if (
                     a["type"] == "Class Support"
@@ -1168,35 +1143,28 @@ def admin_reports():
             )
 
             rows.append({
-
-                "Tutor":
-                    tutor["name"],
-
-                "Tutoring Hours":
-                    round(
-                        tutoring_hours,
-                        2
-                    ),
-
-                "Class Support Hours":
-                    round(
-                        class_hours,
-                        2
-                    ),
-
-                "Total Hours":
-                    round(
-                        tutoring_hours + class_hours,
-                        2
-                    )
-
+                "Tutor": tutor["name"],
+                "Tutoring Hours": round(tutoring_hours, 2),
+                "Class Support Hours": round(class_hours, 2),
+                "Total Hours": round(tutoring_hours + class_hours, 2)
             })
 
-        st.dataframe(
-            pd.DataFrame(rows),
-            use_container_width=True,
-            hide_index=True
-        )
+        overall_df = pd.DataFrame(rows)
+        
+        st.dataframe(overall_df, use_container_width=True, hide_index=True)
+
+        # Download button for Overall Summary
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            excel_buffer = create_excel_file({"Overall Summary": overall_df})
+            excel_buffer = format_excel_sheets(excel_buffer)
+            
+            st.download_button(
+                label="📥 Download Excel",
+                data=excel_buffer,
+                file_name="overall_summary.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
     # ========================================================
     # TUTOR DRILLDOWN
@@ -1212,107 +1180,63 @@ def admin_reports():
         selected_tutor_id = st.selectbox(
             "Tutor",
             options=list(tutor_options.keys()),
-            format_func=lambda tid:
-                f"{tid} — {tutor_options[tid]}",
+            format_func=lambda tid: f"{tid} — {tutor_options[tid]}",
             key="report_tutor"
         )
 
         sessions = [
-
             s for s in st.session_state.sessions
-
             if s["tutor_id"] == selected_tutor_id
-
         ]
 
-        # ----------------------------------------------------
-        # Only completed / credited sessions
-        # ----------------------------------------------------
+        sessions = [s for s in sessions if tutoring_hours_earned(s) > 0]
 
-        sessions = [
-            s for s in sessions
-            if tutoring_hours_earned(s) > 0
-        ]
-
-        sessions.sort(
-            key=lambda s: s["scheduled_start"]
-        )
+        sessions.sort(key=lambda s: s["scheduled_start"])
 
         cumulative_hours = 0
-        current_group = 1
-
         rows = []
 
         for session in sessions:
 
-            hours = tutoring_hours_earned(
-                session
-            )
-
-            # Group according to cumulative hours
-            group_number = (
-                int(cumulative_hours // 5)
-                + 1
-            )
-
+            hours = tutoring_hours_earned(session)
+            group_number = int(cumulative_hours // 5) + 1
             cumulative_hours += hours
 
             rows.append({
-
-                "Group":
-                    f"Group {group_number}",
-
-                "Date":
-                    session["date"],
-
-                "Session":
-                    session["title"],
-
-                "Start":
-                    session["actual_start"],
-
-                "End":
-                    session["actual_end"],
-
-                "Students Attended":
-                    len(
-                        get_session_attendance(
-                            session["id"]
-                        )
-                    ),
-
-                "Hours":
-                    round(
-                        hours,
-                        2
-                    ),
-
-                "Cumulative Hours":
-                    round(
-                        cumulative_hours,
-                        2
-                    )
-
+                "Group": f"Group {group_number}",
+                "Date": session["date"],
+                "Session": session["title"],
+                "Start": session.get("actual_start", ""),
+                "End": session.get("actual_end", ""),
+                "Students Attended": len(get_session_attendance(session["id"])),
+                "Hours": round(hours, 2),
+                "Cumulative Hours": round(cumulative_hours, 2)
             })
 
         if rows:
 
-            st.dataframe(
-                pd.DataFrame(rows),
-                use_container_width=True,
-                hide_index=True
-            )
+            tutor_df = pd.DataFrame(rows)
+            st.dataframe(tutor_df, use_container_width=True, hide_index=True)
 
-            st.metric(
-                "Total Tutoring Hours",
-                f"{cumulative_hours:.2f}"
-            )
+            st.metric("Total Tutoring Hours", f"{cumulative_hours:.2f}")
+
+            # Download button for Tutor Drilldown
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                excel_buffer = create_excel_file({
+                    tutor_options[selected_tutor_id]: tutor_df
+                })
+                excel_buffer = format_excel_sheets(excel_buffer)
+                
+                st.download_button(
+                    label="📥 Download Excel",
+                    data=excel_buffer,
+                    file_name=f"tutor_report_{selected_tutor_id}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
         else:
-
-            st.info(
-                "This tutor has no credited tutoring hours yet."
-            )
+            st.info("This tutor has no credited tutoring hours yet.")
 
     # ========================================================
     # STUDENT REPORT
@@ -1328,103 +1252,67 @@ def admin_reports():
         selected_student_id = st.selectbox(
             "Student",
             options=list(student_options.keys()),
-            format_func=lambda sid:
-                f"{sid} — {student_options[sid]}",
+            format_func=lambda sid: f"{sid} — {student_options[sid]}",
             key="report_student"
         )
 
         records = [
-
             a for a in st.session_state.attendance
-
             if (
                 a["student_id"] == selected_student_id
                 and a["type"] == "Tutoring"
             )
-
         ]
 
-        records.sort(
-            key=lambda a: a["check_in"]
-        )
+        records.sort(key=lambda a: a["check_in"])
 
         rows = []
 
         for attendance in records:
 
-            session = get_session(
-                attendance["session_id"]
-            )
-
-            tutor = (
-                get_tutor(
-                    session["tutor_id"]
-                )
-                if session
-                else None
-            )
+            session = get_session(attendance["session_id"])
+            tutor = get_tutor(session["tutor_id"]) if session else None
 
             rows.append({
-
-                "Date":
-                    (
-                        session["date"]
-                        if session
-                        else ""
-                    ),
-
-                "Session":
-                    (
-                        session["title"]
-                        if session
-                        else ""
-                    ),
-
-                "Tutor":
-                    (
-                        tutor["name"]
-                        if tutor
-                        else ""
-                    ),
-
-                "Scheduled":
-                    (
-                        ensure_local_datetime(session["scheduled_start"])
-                        .strftime("%H:%M")
-                        + " - "
-                        + ensure_local_datetime(session["scheduled_end"])
-                        .strftime("%H:%M")
-                        if session
-                        else ""
-                    ),
-
-                "Attendance":
-                    attendance["check_in"],
-
-                "Status":
-                    attendance["status"]
-
+                "Date": session["date"] if session else "",
+                "Session": session["title"] if session else "",
+                "Tutor": tutor["name"] if tutor else "",
+                "Scheduled": (
+                    ensure_local_datetime(session["scheduled_start"]).strftime("%H:%M")
+                    + " - "
+                    + ensure_local_datetime(session["scheduled_end"]).strftime("%H:%M")
+                    if session else ""
+                ),
+                "Attendance": attendance["check_in"],
+                "Status": attendance["status"]
             })
 
         if rows:
 
-            st.dataframe(
-                pd.DataFrame(rows),
-                use_container_width=True,
-                hide_index=True
-            )
+            student_df = pd.DataFrame(rows)
+            st.dataframe(student_df, use_container_width=True, hide_index=True)
 
-            st.metric(
-                "Sessions Attended",
-                len(rows)
-            )
+            st.metric("Sessions Attended", len(rows))
+
+            # Download button for Student Report
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                excel_buffer = create_excel_file({
+                    student_options[selected_student_id]: student_df
+                })
+                excel_buffer = format_excel_sheets(excel_buffer)
+                
+                st.download_button(
+                    label="📥 Download Excel",
+                    data=excel_buffer,
+                    file_name=f"student_report_{selected_student_id}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
         else:
+            st.info("This student has no tutoring attendance records.")
 
-            st.info(
-                "This student has no tutoring attendance records."
-            )
-
+            
 # ============================================================
 # TUTOR DASHBOARD
 # ============================================================
@@ -3388,6 +3276,54 @@ def get_tutor_commitments(tutor_id):
 
     return commitments
 
+
+# ============================================================
+# EXCEL EXPORT FUNCTIONS
+# ============================================================
+
+def create_excel_file(dataframes_dict):
+    """
+    Create an Excel file with multiple sheets from a dictionary of dataframes.
+    dataframes_dict: {"Sheet Name": dataframe, ...}
+    Returns: BytesIO object
+    """
+    output = BytesIO()
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        for sheet_name, df in dataframes_dict.items():
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+    
+    output.seek(0)
+    return output
+
+def format_excel_sheets(excel_buffer):
+    """
+    Load and format the Excel file for better appearance.
+    """
+    wb = openpyxl.load_workbook(excel_buffer)
+    
+    for ws in wb.sheetnames:
+        sheet = wb[ws]
+        
+        # Auto-adjust column widths
+        for column in sheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            
+            adjusted_width = min(max_length + 2, 50)
+            sheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
 
 
 # ============================================================
