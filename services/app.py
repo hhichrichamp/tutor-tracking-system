@@ -325,7 +325,7 @@ def authenticate(user_id, password):
 def login_page():
 
     st.markdown(
-        '<div class="main-title">📚 Tutor Attendance</div>',
+        '<div class="main-title">📚 Tutor Center - Champlain College</div>',
         unsafe_allow_html=True
     )
 
