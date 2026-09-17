@@ -52,8 +52,8 @@ APP_URL = "https://tutor-center.streamlit.app"
 # ============================================================
 
 st.set_page_config(
-    page_title="Tutor Attendance",
-    page_icon="📚",
+    page_title="Tutor Center",
+    page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
 )
