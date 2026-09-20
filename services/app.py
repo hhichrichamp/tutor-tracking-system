@@ -168,6 +168,8 @@ def initialize_data():
         now = now_local()
 
         st.session_state.sessions = read_sessions_from_sheet()
+        for session in st.session_state.sessions:
+            session["student_ids"] = normalize_student_ids( session.get("student_ids")  )
 
     # --------------------------------------------------------
     # CLASS SCHEDULE
@@ -2456,53 +2458,44 @@ def student_available_sessions():
                 type="primary"
             ):
 
-                # Re-fetch session state before modifying it
-                current_session = get_session(
-                    session["id"]
-                )
+                current_session = get_session(session["id"])
 
                 if not current_session:
-
-                    st.error(
-                        "Session no longer exists."
-                    )
-
-                    continue
+                    st.error("Session no longer exists.")
+                    st.stop()
 
                 if current_session["status"] != "Scheduled":
+                    st.error("This session is no longer available.")
+                    st.stop()
 
-                    st.error(
-                        "This session is no longer available."
-                    )
+                student_id = str(student_id).strip()
 
-                    continue
+                student_ids = normalize_student_ids(
+                    current_session.get("student_ids")
+                )
 
-                if student_id not in [
-                    str(sid)
-                    for sid in current_session.get(
-                        "student_ids", []
-                    )
-                ]:
+                if student_id in student_ids:
+                    st.info("You are already registered for this session.")
+                    st.stop()
 
-                    current_session.setdefault(
-                        "student_ids",
-                        []
-                    ).append(student_id)
+                student_ids.append(student_id)
 
-                    update_session_in_sheet(
-                        current_session["id"],
-                        {
-                            "student_ids":
-                                current_session["student_ids"]
-                        }
-                    )
+                current_session["student_ids"] = student_ids
 
-                    st.success(
-                        "You have successfully registered "
-                        "for this tutoring session."
-                    )
+                # This updates local Streamlit state only with your current helper
+                update_session_in_sheet(
+                    current_session["id"],
+                    {
+                        "student_ids": student_ids
+                    }
+                )
 
-                    st.rerun()
+                st.success(
+                    "You have successfully registered "
+                    "for this tutoring session."
+                )
+
+                st.rerun()
 
 # ============================================================
 # STUDENT ATTENDANCE
@@ -3320,6 +3313,43 @@ def format_excel_sheets(excel_buffer):
     wb.save(output)
     output.seek(0)
     return output
+
+
+def normalize_student_ids(value):
+    """
+    Convert the student_ids value from Google Sheets into
+    a clean list of string student IDs.
+    """
+
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        raw_ids = value
+
+    elif isinstance(value, str):
+        value = value.strip()
+
+        if not value:
+            return []
+
+        raw_ids = value.split(",")
+
+    else:
+        raw_ids = [value]
+
+    cleaned_ids = []
+
+    for student_id in raw_ids:
+        student_id = str(student_id).strip()
+
+        if student_id.startswith("ID_"):
+            student_id = student_id[3:]
+
+        if student_id and student_id not in cleaned_ids:
+            cleaned_ids.append(student_id)
+
+    return cleaned_ids
 
 
 # ============================================================

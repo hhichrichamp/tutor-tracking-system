@@ -135,27 +135,51 @@ def read_sessions_from_sheet():
     records = ws.get_all_records()
     sessions = []
     for r in records:
-        student_ids = r["student_ids"].strip()
-        # Remove "ID_" prefix if present
-        if student_ids.startswith("ID_"):
-            student_ids = student_ids[3:]  # Remove first 3 characters
+
+        raw_student_ids = str(
+            r["student_ids"] or ""
+        )
+
+        student_ids = [
+            student_id.strip().removeprefix("ID_")
+            for student_id in raw_student_ids.split(",")
+            if student_id.strip()
+        ]
+
         tutor_id = r["tutor_id"].strip()
-        # Remove "ID_" prefix if present
+
         if tutor_id.startswith("ID_"):
-            tutor_id = tutor_id[3:]  # Remove first 3 characters
+            tutor_id = tutor_id[3:]
+
         sessions.append({
             "id": r["id"].strip(),
             "type": r["type"].strip(),
-            "tutor_id": tutor_id,  # ← Add .strip() here
+            "tutor_id": tutor_id,
             "student_ids": student_ids,
             "title": r["title"].strip(),
             "date": date.fromisoformat(r["date"]),
-            "scheduled_start": datetime.fromisoformat(r["scheduled_start"]),
-            "scheduled_end": datetime.fromisoformat(r["scheduled_end"]),
-            "actual_start": datetime.fromisoformat(r["actual_start"]) if r["actual_start"] else None,
-            "actual_end": datetime.fromisoformat(r["actual_end"]) if r["actual_end"] else None,
+            "scheduled_start": datetime.fromisoformat(
+                r["scheduled_start"]
+            ),
+            "scheduled_end": datetime.fromisoformat(
+                r["scheduled_end"]
+            ),
+            "actual_start": (
+                datetime.fromisoformat(r["actual_start"])
+                if r["actual_start"]
+                else None
+            ),
+            "actual_end": (
+                datetime.fromisoformat(r["actual_end"])
+                if r["actual_end"]
+                else None
+            ),
             "status": r["status"].strip(),
-            "qr_token": r["qr_token"].strip() if r["qr_token"] else None,
+            "qr_token": (
+                r["qr_token"].strip()
+                if r["qr_token"]
+                else None
+            ),
         })
     return sessions
 
@@ -188,15 +212,21 @@ def update_session_in_sheet(session_id, updated_fields: dict):
     records = ws.get_all_records()
     col_map = {
         "status": 11, "actual_start": 9,
-        "actual_end": 10, "qr_token": 12,
+        "actual_end": 10, "qr_token": 12, "student_ids": 4
     }
     for i, row in enumerate(records, start=2):   # row 1 = header
         if str(row["id"]) == str(session_id):
             for field, value in updated_fields.items():
-                if field in col_map:
-                    if hasattr(value, "strftime"):
-                        value = value.strftime("%Y-%m-%d %H:%M:%S")
-                    ws.update_cell(i, col_map[field], value or "")
+                if field not in col_map:
+                    continue
+
+                if field == "student_ids":
+                    value = ",".join(  "ID_" + str(student_id).strip()    for student_id in value  )
+
+                elif hasattr(value, "strftime"):
+                    value = value.strftime(  "%Y-%m-%d %H:%M:%S"  )
+
+                ws.update_cell(   i, col_map[field],  value or ""  )
             break
 
 
