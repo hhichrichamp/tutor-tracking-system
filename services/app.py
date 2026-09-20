@@ -148,6 +148,43 @@ USERS = load_users()
 # SESSION STATE INITIALIZATION
 # ============================================================
 
+def normalize_student_ids(value):
+    """
+    Convert the student_ids value from Google Sheets into
+    a clean list of string student IDs.
+    """
+
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        raw_ids = value
+
+    elif isinstance(value, str):
+        value = value.strip()
+
+        if not value:
+            return []
+
+        raw_ids = value.split(",")
+
+    else:
+        raw_ids = [value]
+
+    cleaned_ids = []
+
+    for student_id in raw_ids:
+        student_id = str(student_id).strip()
+
+        if student_id.startswith("ID_"):
+            student_id = student_id[3:]
+
+        if student_id and student_id not in cleaned_ids:
+            cleaned_ids.append(student_id)
+
+    return cleaned_ids
+
+
 def initialize_data():
 
     if "logged_in" not in st.session_state:
@@ -3314,42 +3351,6 @@ def format_excel_sheets(excel_buffer):
     output.seek(0)
     return output
 
-
-def normalize_student_ids(value):
-    """
-    Convert the student_ids value from Google Sheets into
-    a clean list of string student IDs.
-    """
-
-    if value is None:
-        return []
-
-    if isinstance(value, list):
-        raw_ids = value
-
-    elif isinstance(value, str):
-        value = value.strip()
-
-        if not value:
-            return []
-
-        raw_ids = value.split(",")
-
-    else:
-        raw_ids = [value]
-
-    cleaned_ids = []
-
-    for student_id in raw_ids:
-        student_id = str(student_id).strip()
-
-        if student_id.startswith("ID_"):
-            student_id = student_id[3:]
-
-        if student_id and student_id not in cleaned_ids:
-            cleaned_ids.append(student_id)
-
-    return cleaned_ids
 
 
 # ============================================================
