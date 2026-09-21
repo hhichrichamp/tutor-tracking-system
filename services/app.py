@@ -52,7 +52,7 @@ APP_URL = "https://tutor-center.streamlit.app"
 # ============================================================
 
 st.set_page_config(
-    page_title="Tutor Center",
+    page_title="Coding Center",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -364,7 +364,7 @@ def authenticate(user_id, password):
 def login_page():
 
     st.markdown(
-        '<div class="main-title">📚 Tutor Center - Champlain College</div>',
+        '<div class="main-title">📚 Coding Center - Champlain College</div>',
         unsafe_allow_html=True
     )
 
@@ -418,7 +418,7 @@ def login_page():
                 st.error("Invalid User ID or password.")
 
         st.info(
-            "Welcome to the tutor center tracking system. "
+            "Welcome to the Coding Center tracking system. "
             "Login to access your dashboard."
         )
 
