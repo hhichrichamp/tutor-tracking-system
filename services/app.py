@@ -1600,23 +1600,42 @@ def tutor_commitments():
     )
 
     my_signups = [
-
         s for s in st.session_state.class_signups
-
         if s["tutor_id"] == tutor_id
-
     ]
 
     if not my_signups:
-
         st.info(
             "You have no classroom-support commitments."
         )
-
         return
 
+    # ====== ADD THIS SECTION ======
+    now = now_local()
+    
+    # Filter out past commitments and sort by date (newest first)
+    my_signups_future = []
     for signup in my_signups:
+        c = get_class(signup["class_id"])
+        if c and ensure_local_datetime(c["start"]) >= now:
+            my_signups_future.append(signup)
+    
+    # Sort by start time, newest first (reverse order)
+    my_signups_future.sort(
+        key=lambda s: get_class(s["class_id"])["start"] if get_class(s["class_id"]) else datetime.min,
+        reverse=True
+    )
+    
+    my_signups = my_signups_future
+    
+    if not my_signups:
+        st.info(
+            "You have no upcoming classroom-support commitments."
+        )
+        return
+    # ====== END ADD ======
 
+    for signup in my_signups:
         c = get_class(
             signup["class_id"]
         )
@@ -2343,9 +2362,9 @@ def student_available_sessions():
         if session["status"] != "Scheduled":
             continue
 
-        # Do not show sessions that have already started
-        # if ensure_local_datetime(session["scheduled_start"]) <= now:
-        #     continue
+        # Do not show sessions that have already started more than 24 hours ago
+        if ensure_local_datetime(session["scheduled_start"]) <= (now + timedelta(hours=24)):
+            continue
 
         # Do not show sessions that already have this student
         if student_id in [
