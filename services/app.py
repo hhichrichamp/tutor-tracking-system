@@ -1062,7 +1062,14 @@ def admin_sessions():
         '<div class="main-title">Sessions</div>',
         unsafe_allow_html=True
     )
-
+    # ====== ADD THIS ======
+    # Sort sessions from newest to oldest
+    sorted_sessions = sorted(
+        st.session_state.sessions,
+        key=lambda s: s["date"],
+        reverse=True
+    )
+    # ====== END ADD ======
     rows = []
 
     for session in st.session_state.sessions:
