@@ -2344,8 +2344,8 @@ def student_available_sessions():
             continue
 
         # Do not show sessions that have already started
-        if ensure_local_datetime(session["scheduled_start"]) <= now:
-            continue
+        # if ensure_local_datetime(session["scheduled_start"]) <= now:
+        #     continue
 
         # Do not show sessions that already have this student
         if student_id in [
