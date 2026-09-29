@@ -1072,7 +1072,7 @@ def admin_sessions():
     # ====== END ADD ======
     rows = []
 
-    for session in st.session_state.sessions:
+    for session in sorted_sessions:
 
         tutor = get_tutor(
             session["tutor_id"]
