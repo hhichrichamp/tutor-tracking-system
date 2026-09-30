@@ -892,6 +892,12 @@ def admin_tutors():
         selected_tutor_id
     )
 
+    # Newest first
+    commitments.sort(
+        key=lambda x: ensure_local_datetime(x["start"]),
+        reverse=True
+    )
+
     if not commitments:
 
         st.info(
@@ -958,7 +964,7 @@ def admin_tutors():
     ]
 
     sessions.sort(
-        key=lambda s: s["scheduled_start"]
+        key=lambda s: s["scheduled_start"], reverse=True
     )
 
     if not sessions:
@@ -1610,7 +1616,7 @@ def tutor_dashboard():
             hide_index=True
         )
 
-        
+
 # ============================================================
 # AVAILABLE CLASSES
 # ============================================================
