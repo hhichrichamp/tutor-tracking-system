@@ -2600,8 +2600,8 @@ def student_list_tutors():
 
         rows.append({
             "Name":  tutor.get("name", ""),
-            "Email": tutor.get("email", ""),
-            "Phone": tutor.get("phone", ""),
+            "Email": tutor.get("id", "")+"@champlaincollege.qc.ca",
+            "Phone": tutor.get("phone", "514-555-1111"),
         })
 
     df = pd.DataFrame(rows)
