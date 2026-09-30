@@ -2583,12 +2583,34 @@ def student_list_tutors():
         unsafe_allow_html=True
     )
 
-    tutors = USERS["tutors"]
+    tutors = USERS.get("tutors", [])
 
     if not tutors:
 
         st.info("No tutors are currently registered.")
         return
+
+    # --------------------------------------------------------
+    # Build table rows (Name, Email, Phone only)
+    # --------------------------------------------------------
+
+    rows = []
+
+    for tutor in tutors:
+
+        rows.append({
+            "Name":  tutor.get("name", ""),
+            "Email": tutor.get("email", ""),
+            "Phone": tutor.get("phone", ""),
+        })
+
+    df = pd.DataFrame(rows)
+
+    # Sort alphabetically by name
+    df = df.sort_values(
+        by="Name",
+        key=lambda col: col.str.lower()
+    ).reset_index(drop=True)
 
     # --------------------------------------------------------
     # Optional search box
@@ -2599,76 +2621,43 @@ def student_list_tutors():
         placeholder="Type a tutor's name..."
     ).strip().lower()
 
-    filtered = [
-        t for t in tutors
-        if not search or search in t["name"].lower()
-    ]
+    if search:
 
-    if not filtered:
+        df = df[
+            df["Name"].str.lower().str.contains(search, na=False)
+        ].reset_index(drop=True)
+
+    if df.empty:
 
         st.warning("No tutors match your search.")
         return
 
-    st.caption(f"Showing {len(filtered)} tutor(s).")
+    st.caption(f"Showing {len(df)} tutor(s).")
     st.divider()
 
     # --------------------------------------------------------
-    # Contact fields to display
-    #
-    # The app's users.json may only contain id/name/password.
-    # This block reads whichever contact fields exist so the
-    # page works regardless of what you add later.
+    # Display table
     # --------------------------------------------------------
 
-    CONTACT_FIELDS = [
-        ("email",  "📧 Email"),
-        ("phone",  "📞 Phone"),
-        ("office", "🏢 Office"),
-        ("subject","📚 Subject"),
-        ("bio",    "📝 Bio"),
-    ]
-
-    for tutor in filtered:
-
-        with st.container(border=True):
-
-            st.subheader(
-                f"👨‍🏫 {tutor['name']}"
-            )
-
-            st.caption(f"Tutor ID: {tutor['id']}")
-
-            # ----------------------------------------------
-            # Contact details
-            # ----------------------------------------------
-
-            shown = False
-
-            for key, label in CONTACT_FIELDS:
-
-                value = tutor.get(key)
-
-                if value:
-
-                    shown = True
-
-                    if key == "email":
-
-                        st.markdown(
-                            f"{label}: [{value}](mailto:{value})"
-                        )
-
-                    else:
-
-                        st.write(f"{label}: {value}")
-
-            if not shown:
-
-                st.info(
-                    "No contact information available yet."
-                )
-
-
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Name":  st.column_config.TextColumn(
+                "Name",
+                width="medium"
+            ),
+            "Email": st.column_config.LinkColumn(
+                "Email",
+                display_text=r"(.+)"   # shows full email as clickable link
+            ),
+            "Phone": st.column_config.TextColumn(
+                "Phone",
+                width="small"
+            ),
+        }
+    )
 
 
 
