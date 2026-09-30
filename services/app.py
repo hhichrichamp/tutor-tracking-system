@@ -2287,10 +2287,7 @@ def student_dashboard():
 
     upcoming_sessions = [
         s for s in my_sessions
-        if (
-            s["status"] in ["Scheduled", "Active"]
-            and ensure_local_datetime(s["scheduled_start"]) >= now_local()
-        )
+        if (  ensure_local_datetime(s["scheduled_start"]) >= now_local()      )
     ]
 
     # Chronological order
