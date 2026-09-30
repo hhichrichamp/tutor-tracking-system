@@ -364,7 +364,7 @@ def authenticate(user_id, password):
 def login_page():
 
     st.markdown(
-        '<div class="main-title">📚 Coding Center - Champlain College</div>',
+        '<div class="main-title">📚 Coding Center - Champlain College - Saint Lambert</div>',
         unsafe_allow_html=True
     )
 
@@ -432,7 +432,7 @@ def sidebar():
     user = st.session_state.user
     role = st.session_state.role
 
-    st.sidebar.markdown("## 📚 Tutor Attendance")
+    st.sidebar.markdown("## 📚 CODING CENTRE")
 
     st.sidebar.write(
         f"**{user['name']}**"
