@@ -820,16 +820,11 @@ def admin_tutors():
     selected_tutor_id = st.selectbox(
         "Select tutor",
         options=list(tutor_options.keys()),
-        format_func=lambda tid:
-            f"{tid} — {tutor_options[tid]}"
-    )
-
-    tutor = get_tutor(
-        selected_tutor_id
+        format_func=lambda tid: f"{tid} — {tutor_options[tid]}"
     )
 
     # --------------------------------------------------------
-    # Calculate accomplished hours
+    # Hours metrics
     # --------------------------------------------------------
 
     tutoring_hours = 0
@@ -839,9 +834,7 @@ def admin_tutors():
 
         if session["tutor_id"] == selected_tutor_id:
 
-            tutoring_hours += tutoring_hours_earned(
-                session
-            )
+            tutoring_hours += tutoring_hours_earned(session)
 
     for attendance in st.session_state.attendance:
 
@@ -857,180 +850,134 @@ def admin_tutors():
 
     total_hours = tutoring_hours + class_hours
 
-    # --------------------------------------------------------
-    # Metrics
-    # --------------------------------------------------------
-
     c1, c2, c3 = st.columns(3)
 
-    c1.metric(
-        "Tutoring Hours",
-        f"{tutoring_hours:.2f}"
-    )
-
-    c2.metric(
-        "Class Support Hours",
-        f"{class_hours:.2f}"
-    )
-
-    c3.metric(
-        "Total Hours",
-        f"{total_hours:.2f}"
-    )
+    c1.metric("Tutoring Hours", f"{tutoring_hours:.2f}")
+    c2.metric("Class Support Hours", f"{class_hours:.2f}")
+    c3.metric("Total Hours", f"{total_hours:.2f}")
 
     st.divider()
 
+    # --------------------------------------------------------
+    # Split activity into future / past
+    # --------------------------------------------------------
+
+    now = now_local()
+
+    activity = get_tutor_activity(selected_tutor_id)
+
+    future = [r for r in activity if r["end"] >= now]
+    past   = [r for r in activity if r["end"] <  now]
+
+    # Future: soonest first
+    future.sort(key=lambda r: r["start"])
+
+    # Past: most recent first
+    past.sort(key=lambda r: r["start"], reverse=True)
+
+
+    type_filter = st.radio(
+        "Show",
+        ["All", "Tutoring", "Class Support"],
+        horizontal=True
+    )
+
+    if type_filter != "All":
+        future = [r for r in future if r["type"] == type_filter]
+        past   = [r for r in past   if r["type"] == type_filter]
+
     # ========================================================
-    # COMMITMENTS
+    # TABLE 1 — UPCOMING COMMITMENTS
     # ========================================================
 
-    st.subheader(
-        "Commitments"
-    )
+    st.subheader("Upcoming Commitments")
 
-    commitments = get_tutor_commitments(
-        selected_tutor_id
-    )
+    if not future:
 
-    # Newest first
-    commitments.sort(
-        key=lambda x: ensure_local_datetime(x["start"]),
-        reverse=True
-    )
-
-    if not commitments:
-
-        st.info(
-            "This tutor has no commitments."
-        )
+        st.info("This tutor has no upcoming commitments.")
 
     else:
 
         rows = []
 
-        for commitment in commitments:
+        for r in future:
 
             rows.append({
 
-                "Type":
-                    commitment["type"],
-
-                "Title":
-                    commitment["title"],
-
-                "Date":
-                    commitment["date"],
-
-                "Start":
-                    commitment["start"].strftime(
-                        "%H:%M"
-                    ),
-
-                "End":
-                    commitment["end"].strftime(
-                        "%H:%M"
-                    ),
-
-                "Location":
-                    commitment["location"],
-
-                "Status":
-                    commitment["status"]
+                "Type":     r["type"],
+                "Title":    r["title"],
+                "Date":     r["date"],
+                "Start":    r["start"].strftime("%H:%M"),
+                "End":      r["end"].strftime("%H:%M"),
+                "Location": r["location"],
+                "Status":   r["status"]
 
             })
 
         st.dataframe(
             pd.DataFrame(rows),
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            column_config={
+                "Date": st.column_config.DateColumn(
+                    "Date",
+                    format="YYYY-MM-DD"
+                ),
+                "Start": st.column_config.TextColumn("Start", width="small"),
+                "End":   st.column_config.TextColumn("End",   width="small"),
+            }
         )
 
     st.divider()
 
     # ========================================================
-    # TUTORING SESSIONS
+    # TABLE 2 — PAST ACTIVITY
     # ========================================================
 
-    st.subheader(
-        "Tutoring Sessions"
-    )
+    st.subheader("Past Activity")
 
-    sessions = [
+    if not past:
 
-        s for s in st.session_state.sessions
-
-        if s["tutor_id"] == selected_tutor_id
-
-    ]
-
-    sessions.sort(
-        key=lambda s: s["scheduled_start"], reverse=True
-    )
-
-    if not sessions:
-
-        st.info(
-            "No tutoring sessions."
-        )
+        st.info("This tutor has no past activity.")
 
     else:
 
         rows = []
 
-        for session in sessions:
-
-            attendance = get_session_attendance(
-                session["id"]
-            )
-
-            credited_hours = tutoring_hours_earned(
-                session
-            )
+        for r in past:
 
             rows.append({
 
-                "Date":
-                    session["date"],
-
-                "Session":
-                    session["title"],
-
-                "Scheduled":
-                    (
-                        ensure_local_datetime(session["scheduled_start"])
-                        .strftime("%H:%M")
-                        + " - "
-                        + ensure_local_datetime(session["scheduled_end"])
-                        .strftime("%H:%M")
-                    ),
-
-                "Students Registered":
-                    len(
-                        session.get(
-                            "student_ids",
-                            []
-                        )
-                    ),
-
-                "Students Attended":
-                    len(attendance),
-
-                "Status":
-                    session["status"],
-
-                "Hours Earned":
-                    round(
-                        credited_hours,
-                        2
-                    )
+                "Type":          r["type"],
+                "Title":         r["title"],
+                "Date":          r["date"],
+                "Start":         r["start"].strftime("%H:%M"),
+                "End":           r["end"].strftime("%H:%M"),
+                "Location":      r["location"],
+                "Status":        r["status"],
+                "Hours Counted": "✅ Yes" if r["counted"] else "—",
+                "Hours":         round(r["hours"], 2)
 
             })
 
         st.dataframe(
             pd.DataFrame(rows),
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            column_config={
+                "Date": st.column_config.DateColumn(
+                    "Date",
+                    format="YYYY-MM-DD"
+                ),
+                "Start": st.column_config.TextColumn("Start", width="small"),
+                "End":   st.column_config.TextColumn("End",   width="small"),
+                "Hours": st.column_config.NumberColumn(
+                    "Hours",
+                    format="%.2f"
+                ),
+            }
         )
+
 
 # ============================================================
 # ADMIN STUDENTS
@@ -3509,6 +3456,112 @@ def get_tutor_commitments(tutor_id):
     )
 
     return commitments
+
+
+# ============================================================
+# TUTOR ACTIVITY (unified: tutoring + class support)
+# ============================================================
+
+def get_tutor_activity(tutor_id):
+    """
+    Return every commitment a tutor has, of both types,
+    enriched with hours earned and a normalized datetime.
+
+    Each record:
+        type      : "Tutoring" | "Class Support"
+        title     : display title
+        date      : date object
+        start     : aware datetime
+        end       : aware datetime
+        location  : room (class) or "" (tutoring)
+        status    : session/class status
+        hours     : credited hours (0 if none)
+        counted   : True if hours were credited
+    """
+
+    tutor_id = str(tutor_id).strip()
+    records = []
+
+    # --------------------------------------------------------
+    # Class support signups
+    # --------------------------------------------------------
+
+    for signup in st.session_state.class_signups:
+
+        if str(signup["tutor_id"]).strip() != tutor_id:
+            continue
+
+        c = get_class(signup["class_id"])
+
+        if not c:
+            continue
+
+        # Find this tutor's attendance for this class
+        attendance = None
+
+        for a in st.session_state.attendance:
+
+            if (
+                a["type"] == "Class Support"
+                and a["class_id"] == c["id"]
+                and str(a["tutor_id"]).strip() == tutor_id
+            ):
+
+                attendance = a
+                break
+
+        if attendance and attendance["check_out"]:
+
+            hours = calculate_hours(
+                attendance["check_in"],
+                attendance["check_out"]
+            )
+
+        else:
+
+            hours = 0
+
+        records.append({
+
+            "type":     "Class Support",
+            "title":    f"{c['course']} — {c['title']}",
+            "date":     c["date"],
+            "start":    ensure_local_datetime(c["start"]),
+            "end":      ensure_local_datetime(c["end"]),
+            "location": c["room"],
+            "status":   c.get("status", "Open"),
+            "hours":    hours,
+            "counted":  hours > 0
+
+        })
+
+    # --------------------------------------------------------
+    # Tutoring sessions
+    # --------------------------------------------------------
+
+    for session in st.session_state.sessions:
+
+        if str(session["tutor_id"]).strip() != tutor_id:
+            continue
+
+        hours = tutoring_hours_earned(session)
+
+        records.append({
+
+            "type":     "Tutoring",
+            "title":    session["title"],
+            "date":     session["date"],
+            "start":    ensure_local_datetime(session["scheduled_start"]),
+            "end":      ensure_local_datetime(session["scheduled_end"]),
+            "location": "",
+            "status":   session["status"],
+            "hours":    hours,
+            "counted":  hours > 0
+
+        })
+
+    return records
+
 
 
 # ============================================================
