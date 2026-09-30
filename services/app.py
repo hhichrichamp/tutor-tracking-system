@@ -2280,7 +2280,27 @@ def student_dashboard():
         s for s in st.session_state.sessions
         if student_id in s["student_ids"]
     ]
+    # ---- TEMPORARY DEBUG ----
+    with st.expander("🔍 Debug: session timing", expanded=True):
 
+        st.write("student_id:", repr(student_id))
+        st.write("now_local:", now_local().isoformat())
+        st.write("my_sessions count:", len(my_sessions))
+
+        for s in my_sessions:
+
+            start = ensure_local_datetime(s["scheduled_start"])
+            end   = ensure_local_datetime(s["scheduled_end"])
+
+            st.write({
+                "id": s["id"],
+                "raw scheduled_start": repr(s["scheduled_start"]),
+                "parsed start": start.isoformat() if start else None,
+                "parsed end":   end.isoformat()   if end   else None,
+                "start >= now": (start >= now_local()) if start else None,
+                "status": s["status"],
+            })
+    # ---- END DEBUG ----
     # --------------------------------------------------------
     # Upcoming = still Scheduled/Active AND not yet ended
     # --------------------------------------------------------
