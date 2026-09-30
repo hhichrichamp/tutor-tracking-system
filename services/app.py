@@ -1426,9 +1426,9 @@ def tutor_dashboard():
 
     st.divider()
 
-    # --------------------------------------------------------
-    # My Tutoring Sessions (table)
-    # --------------------------------------------------------
+    # ========================================================
+    # TUTORING SESSIONS TABLE
+    # ========================================================
 
     st.subheader("My Tutoring Sessions")
 
@@ -1437,7 +1437,6 @@ def tutor_dashboard():
         if s["tutor_id"] == tutor_id
     ]
 
-    # Newest first
     my_sessions.sort(
         key=lambda s: ensure_local_datetime(s["scheduled_start"]),
         reverse=True
@@ -1446,73 +1445,172 @@ def tutor_dashboard():
     if not my_sessions:
 
         st.info("You have no tutoring sessions yet.")
-        return
 
-    rows = []
+    else:
 
-    for session in my_sessions:
+        rows = []
 
-        scheduled_start = ensure_local_datetime(session["scheduled_start"])
-        scheduled_end   = ensure_local_datetime(session["scheduled_end"])
+        for session in my_sessions:
 
-        # ------------------------------------------------
-        # Attendance → student names
-        # ------------------------------------------------
+            scheduled_start = ensure_local_datetime(session["scheduled_start"])
+            scheduled_end   = ensure_local_datetime(session["scheduled_end"])
 
-        attendance_records = get_session_attendance(session["id"])
+            attendance_records = get_session_attendance(session["id"])
 
-        attended_names = []
+            attended_names = []
 
-        for a in attendance_records:
+            for a in attendance_records:
 
-            student = get_student(a["student_id"])
+                student = get_student(a["student_id"])
 
-            if student:
-                attended_names.append(student["name"])
-            else:
-                attended_names.append(str(a["student_id"]))
+                attended_names.append(
+                    student["name"] if student else str(a["student_id"])
+                )
 
-        # ------------------------------------------------
-        # Whether hours are counted
-        # ------------------------------------------------
+            earned = tutoring_hours_earned(session)
 
-        earned = tutoring_hours_earned(session)
+            rows.append({
 
-        counted = "✅ Yes" if earned > 0 else "—"
+                "Date": session["date"],
 
-        rows.append({
+                "Session": session["title"],
 
-            "Date": session["date"],
+                "Scheduled":
+                    scheduled_start.strftime("%H:%M")
+                    + " - "
+                    + scheduled_end.strftime("%H:%M"),
 
-            "Session": session["title"],
+                "Status": session["status"],
 
-            "Scheduled":
-                scheduled_start.strftime("%H:%M")
-                + " - "
-                + scheduled_end.strftime("%H:%M"),
+                "Hours Counted":
+                    "✅ Yes" if earned > 0 else "—",
 
-            "Status": session["status"],
+                "Hours": round(earned, 2),
 
-            "Hours Counted": counted,
+                "Students Attended":
+                    ", ".join(attended_names) if attended_names else "",
 
-            "Hours": round(earned, 2),
+                "Registered":
+                    len(session.get("student_ids", []))
 
-            "Students Attended":
-                ", ".join(attended_names)
-                if attended_names
-                else "",
+            })
 
-            "Registered":
-                len(session.get("student_ids", []))
+        st.dataframe(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True
+        )
 
-        })
+    st.divider()
 
-    st.dataframe(
-        pd.DataFrame(rows),
-        use_container_width=True,
-        hide_index=True
+    # ========================================================
+    # CLASS SUPPORT TABLE
+    # ========================================================
+
+    st.subheader("My Class Support Sessions")
+
+    # Pair each signup with its class, skipping orphaned signups
+    class_pairs = []
+
+    for signup in signups:
+
+        c = get_class(signup["class_id"])
+
+        if c:
+            class_pairs.append((signup, c))
+
+    # Newest first
+    class_pairs.sort(
+        key=lambda pair: ensure_local_datetime(pair[1]["start"]),
+        reverse=True
     )
 
+    if not class_pairs:
+
+        st.info("You have no class support commitments.")
+
+    else:
+
+        rows = []
+
+        for signup, c in class_pairs:
+
+            class_start = ensure_local_datetime(c["start"])
+            class_end   = ensure_local_datetime(c["end"])
+
+            # ------------------------------------------------
+            # Find this tutor's attendance for this class
+            # ------------------------------------------------
+
+            attendance = None
+
+            for a in st.session_state.attendance:
+
+                if (
+                    a["type"] == "Class Support"
+                    and a["class_id"] == c["id"]
+                    and a["tutor_id"] == tutor_id
+                ):
+
+                    attendance = a
+                    break
+
+            # ------------------------------------------------
+            # Derive status + hours
+            # ------------------------------------------------
+
+            if attendance is None:
+
+                my_status = "Not checked in"
+                counted   = "—"
+                hours     = 0
+
+            elif attendance["check_out"] is None:
+
+                my_status = "Checked in"
+                counted   = "In progress"
+                hours     = 0
+
+            else:
+
+                hours = calculate_hours(
+                    attendance["check_in"],
+                    attendance["check_out"]
+                )
+
+                my_status = "Completed"
+                counted   = "✅ Yes" if hours > 0 else "—"
+
+            rows.append({
+
+                "Date": c["date"],
+
+                "Course": c["course"],
+
+                "Class": c["title"],
+
+                "Scheduled":
+                    class_start.strftime("%H:%M")
+                    + " - "
+                    + class_end.strftime("%H:%M"),
+
+                "Room": c["room"],
+
+                "My Status": my_status,
+
+                "Hours Counted": counted,
+
+                "Hours": round(hours, 2)
+
+            })
+
+        st.dataframe(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        
 # ============================================================
 # AVAILABLE CLASSES
 # ============================================================
