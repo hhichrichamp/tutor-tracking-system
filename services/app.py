@@ -2583,7 +2583,7 @@ def student_list_tutors():
         unsafe_allow_html=True
     )
 
-    tutors = USERS.get("tutors", [])
+    tutors = USERS["tutors"]
 
     if not tutors:
 
@@ -3595,6 +3595,9 @@ def main():
 
         elif page == "Available Sessions":
             student_available_sessions()
+
+        elif page == "List of Tutors":
+            student_list_tutors()
 
         elif page == "My Attendance":
             student_attendance()
