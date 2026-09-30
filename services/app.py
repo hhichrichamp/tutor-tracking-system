@@ -1378,6 +1378,10 @@ def tutor_dashboard():
         unsafe_allow_html=True
     )
 
+    # --------------------------------------------------------
+    # Hours
+    # --------------------------------------------------------
+
     tutoring_hours = 0
     class_hours = 0
 
@@ -1385,7 +1389,7 @@ def tutor_dashboard():
 
         if session["tutor_id"] == tutor_id:
 
-            tutoring_hours +=  tutoring_hours_earned(session)
+            tutoring_hours += tutoring_hours_earned(session)
 
     for attendance in st.session_state.attendance:
 
@@ -1406,89 +1410,108 @@ def tutor_dashboard():
         if s["tutor_id"] == tutor_id
     ]
 
-    active_sessions = [
-        s for s in st.session_state.sessions
-        if (
-            s["tutor_id"] == tutor_id
-            and s["status"] == "Active"
-        )
-    ]
+    # --------------------------------------------------------
+    # Metrics
+    # --------------------------------------------------------
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric(
-        "Total Hours",
-        f"{total_hours:.1f}"
-    )
+    c1.metric("Total Hours", f"{total_hours:.1f}")
 
-    c2.metric(
-        "Tutoring",
-        f"{tutoring_hours:.1f} h"
-    )
+    c2.metric("Tutoring", f"{tutoring_hours:.1f} h")
 
-    c3.metric(
-        "Class Support",
-        f"{class_hours:.1f} h"
-    )
+    c3.metric("Class Support", f"{class_hours:.1f} h")
 
-    c4.metric(
-        "Class Commitments",
-        len(signups)
-    )
+    c4.metric("Class Commitments", len(signups))
 
     st.divider()
 
-    if active_sessions:
+    # --------------------------------------------------------
+    # My Tutoring Sessions (table)
+    # --------------------------------------------------------
 
-        st.subheader(
-            "Active Tutoring Session"
-        )
+    st.subheader("My Tutoring Sessions")
 
-        for session in active_sessions:
+    my_sessions = [
+        s for s in st.session_state.sessions
+        if s["tutor_id"] == tutor_id
+    ]
 
-            st.info(
-                f"{session['title']} — "
-                f"{session['scheduled_start'].strftime('%H:%M')}"
-            )
-
-    st.subheader(
-        "Upcoming Commitments"
+    # Newest first
+    my_sessions.sort(
+        key=lambda s: ensure_local_datetime(s["scheduled_start"]),
+        reverse=True
     )
 
-    upcoming = []
+    if not my_sessions:
 
-    for signup in signups:
+        st.info("You have no tutoring sessions yet.")
+        return
 
-        c = get_class(
-            signup["class_id"]
-        )
+    rows = []
 
-        if c and ensure_local_datetime(c["start"]) >= now_local():
+    for session in my_sessions:
 
-            upcoming.append(c)
+        scheduled_start = ensure_local_datetime(session["scheduled_start"])
+        scheduled_end   = ensure_local_datetime(session["scheduled_end"])
 
-    if not upcoming:
+        # ------------------------------------------------
+        # Attendance → student names
+        # ------------------------------------------------
 
-        st.info(
-            "You have no upcoming classroom-support commitments."
-        )
+        attendance_records = get_session_attendance(session["id"])
 
-    for c in upcoming:
+        attended_names = []
 
-        st.markdown(
-            f"""
-            <div class="session-card">
-                <strong>{c['course']}</strong><br>
-                {c['title']}<br>
-                📅 {c['date']} |
-                🕐 {c['start'].strftime('%H:%M')} -
-                {c['end'].strftime('%H:%M')} |
-                📍 {c['room']}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        for a in attendance_records:
 
+            student = get_student(a["student_id"])
+
+            if student:
+                attended_names.append(student["name"])
+            else:
+                attended_names.append(str(a["student_id"]))
+
+        # ------------------------------------------------
+        # Whether hours are counted
+        # ------------------------------------------------
+
+        earned = tutoring_hours_earned(session)
+
+        counted = "✅ Yes" if earned > 0 else "—"
+
+        rows.append({
+
+            "Date": session["date"],
+
+            "Session": session["title"],
+
+            "Scheduled":
+                scheduled_start.strftime("%H:%M")
+                + " - "
+                + scheduled_end.strftime("%H:%M"),
+
+            "Status": session["status"],
+
+            "Hours Counted": counted,
+
+            "Hours": round(earned, 2),
+
+            "Students Attended":
+                ", ".join(attended_names)
+                if attended_names
+                else "",
+
+            "Registered":
+                len(session.get("student_ids", []))
+
+        })
+
+    st.dataframe(
+        pd.DataFrame(rows),
+        use_container_width=True,
+        hide_index=True
+    )
 
 # ============================================================
 # AVAILABLE CLASSES
