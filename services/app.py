@@ -2270,74 +2270,87 @@ def student_dashboard():
         unsafe_allow_html=True
     )
 
+    now = now_local()
+
+    # --------------------------------------------------------
+    # All sessions the student is registered for
+    # --------------------------------------------------------
+
     my_sessions = [
-
         s for s in st.session_state.sessions
-
         if student_id in s["student_ids"]
-
     ]
 
+    # --------------------------------------------------------
+    # Upcoming = still Scheduled/Active AND not yet ended
+    # --------------------------------------------------------
+
+    upcoming_sessions = [
+        s for s in my_sessions
+        if (
+            s["status"] in ["Scheduled", "Active"]
+            and ensure_local_datetime(s["scheduled_end"]) >= now
+        )
+    ]
+
+    # Chronological order
+    upcoming_sessions.sort(
+        key=lambda s: ensure_local_datetime(s["scheduled_start"])
+    )
+
+    # --------------------------------------------------------
+    # Metrics
+    # --------------------------------------------------------
+
     attendance_count = len([
-
         a for a in st.session_state.attendance
-
         if a["student_id"] == student_id
-
     ])
 
     active = len([
-
-        s for s in my_sessions
-
+        s for s in upcoming_sessions
         if s["status"] == "Active"
-
     ])
 
     c1, c2, c3 = st.columns(3)
 
-    c1.metric(
-        "My Sessions",
-        len(my_sessions)
-    )
-
-    c2.metric(
-        "Active Sessions",
-        active
-    )
-
-    c3.metric(
-        "Attendance Records",
-        attendance_count
-    )
+    c1.metric("My Sessions", len(my_sessions))
+    c2.metric("Active Sessions", active)
+    c3.metric("Attendance Records", attendance_count)
 
     st.divider()
 
-    st.subheader(
-        "Upcoming Sessions"
-    )
+    # --------------------------------------------------------
+    # Upcoming sessions
+    # --------------------------------------------------------
 
-    for session in my_sessions:
+    st.subheader("Upcoming Sessions")
 
-        if session["status"] in [
-            "Scheduled",
-            "Active"
-        ]:
+    if not upcoming_sessions:
 
-            st.markdown(
-                f"""
-                <div class="session-card">
-                    <strong>{session['title']}</strong><br>
-                    Tutor:
-                    {get_tutor(session['tutor_id'])['name']}<br>
-                    📅 {session['date']} |
-                    🕐 {session['scheduled_start'].strftime('%H:%M')} -
-                    {session['scheduled_end'].strftime('%H:%M')}<br>
-                    Status: {session['status']}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        st.info("You have no upcoming sessions.")
+        return
+
+    for session in upcoming_sessions:
+
+        tutor = get_tutor(session["tutor_id"])
+
+        scheduled_start = ensure_local_datetime(session["scheduled_start"])
+        scheduled_end = ensure_local_datetime(session["scheduled_end"])
+
+        st.markdown(
+            f"""
+            <div class="session-card">
+                <strong>{session['title']}</strong><br>
+                Tutor: {tutor['name'] if tutor else ''}<br>
+                📅 {session['date']} |
+                🕐 {scheduled_start.strftime('%H:%M')} -
+                {scheduled_end.strftime('%H:%M')}<br>
+                Status: {session['status']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # ============================================================
 # STUDENT AVAILABLE SESSIONS
