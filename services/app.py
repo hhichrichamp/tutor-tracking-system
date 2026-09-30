@@ -2285,11 +2285,11 @@ def student_dashboard():
     # Upcoming = still Scheduled/Active AND not yet ended
     # --------------------------------------------------------
 
-    upcoming_sessions = [
-        s for s in my_sessions
-        if (  ensure_local_datetime(s["scheduled_start"]) >= now_local()      )
-    ]
-
+    # upcoming_sessions = [
+    #     s for s in my_sessions
+    #     if (  ensure_local_datetime(s["scheduled_start"]) >= now_local()      )
+    # ]
+    upcoming_sessions  = my_sessions
     # Chronological order
     upcoming_sessions.sort(
         key=lambda s: ensure_local_datetime(s["scheduled_start"])
