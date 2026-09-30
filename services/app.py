@@ -1625,7 +1625,7 @@ def tutor_commitments():
     my_signups_future = []
     for signup in my_signups:
         c = get_class(signup["class_id"])
-        if c and ensure_local_datetime(c["start"]) >= now:
+        if c and ensure_local_datetime(c["start"]) >= now_local():
             my_signups_future.append(signup)
     
     # Sort by start time, newest first (reverse order)
@@ -2289,7 +2289,7 @@ def student_dashboard():
         s for s in my_sessions
         if (
             s["status"] in ["Scheduled", "Active"]
-            and ensure_local_datetime(s["scheduled_end"]) >= now
+            and ensure_local_datetime(s["scheduled_start"]) >= now_local()
         )
     ]
 
@@ -2384,7 +2384,7 @@ def student_available_sessions():
             continue
 
         # Do not show sessions that have already started more than 24 hours ago
-        if ensure_local_datetime(session["scheduled_start"]) <= (now + timedelta(hours=24)):
+        if ensure_local_datetime(session["scheduled_start"]) <= (now_local() + timedelta(hours=24)):
             continue
 
         # Do not show sessions that already have this student
@@ -2943,8 +2943,7 @@ def tutoring_qr_page(session_id, token):
             return
 
         maximum_end = (
-            ensure_local_datetime(session["scheduled_end"])
-            + timedelta(minutes=15)
+            ensure_local_datetime(session["scheduled_end"]) + timedelta(minutes=15)
         )
 
         if now_local() > maximum_end:
