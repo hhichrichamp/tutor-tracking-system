@@ -469,8 +469,8 @@ def sidebar():
 
         pages = [
             "Dashboard",
-            "Available Sessions",
             "List of Tutors",
+            "Available Sessions",
             "My Attendance"
         ]
 
@@ -2576,89 +2576,25 @@ def student_list_tutors():
         unsafe_allow_html=True
     )
 
-    st.markdown(
-        '<div class="subtitle">'
-        'Browse our tutors and their contact information.'
-        '</div>',
-        unsafe_allow_html=True
-    )
-
     tutors = USERS.get("tutors", [])
+    tutors = sorted(tutors, key=lambda t: t.get("name", "").lower())
 
-    if not tutors:
+    h1, h2, h3 = st.columns([2, 3, 2])
+    h1.markdown("**Name**")
+    h2.markdown("**Email**")
+    h3.markdown("**Phone**")
 
-        st.info("No tutors are currently registered.")
-        return
-
-    # --------------------------------------------------------
-    # Build table rows (Name, Email, Phone only)
-    # --------------------------------------------------------
-
-    rows = []
-
-    for tutor in tutors:
-
-        rows.append({
-            "Name":  tutor.get("name", ""),
-            "Email": tutor.get("id", "")+"@champlaincollege.qc.ca",
-            "Phone": tutor.get("phone", "514-555-1111"),
-        })
-
-    df = pd.DataFrame(rows)
-
-    # Sort alphabetically by name
-    df = df.sort_values(
-        by="Name",
-        key=lambda col: col.str.lower()
-    ).reset_index(drop=True)
-
-    # --------------------------------------------------------
-    # Optional search box
-    # --------------------------------------------------------
-
-    search = st.text_input(
-        "Search by name",
-        placeholder="Type a tutor's name..."
-    ).strip().lower()
-
-    if search:
-
-        df = df[
-            df["Name"].str.lower().str.contains(search, na=False)
-        ].reset_index(drop=True)
-
-    if df.empty:
-
-        st.warning("No tutors match your search.")
-        return
-
-    st.caption(f"Showing {len(df)} tutor(s).")
     st.divider()
 
-    # --------------------------------------------------------
-    # Display table
-    # --------------------------------------------------------
-
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Name":  st.column_config.TextColumn(
-                "Name",
-                width="medium"
-            ),
-            "Email": st.column_config.LinkColumn(
-                "Email",
-                display_text=r"(.+)"   # shows full email as clickable link
-            ),
-            "Phone": st.column_config.TextColumn(
-                "Phone",
-                width="small"
-            ),
-        }
-    )
-
+    for tutor in tutors:
+        c1, c2, c3 = st.columns([2, 3, 2])
+        c1.write(tutor.get("name", ""))
+        with c2:
+            st.code(
+                tutor.get("id", "") + "@champlaincollege.qc.ca",
+                language=None
+            )
+        c3.write(tutor.get("phone", "514-555-1111"))
 
 
 
