@@ -460,7 +460,7 @@ def sidebar():
         pages = [
             "Dashboard",
             "Available Classes",
-            "My Commitments",
+            "Student at-risk",
             "My Sessions",
             "Create Tutoring Session"
         ]
@@ -1667,6 +1667,99 @@ def tutor_available_classes():
                     )
 
                     st.rerun()
+
+
+# ============================================================
+# TUTOR — STUDENTS AT RISK
+# ============================================================
+
+def tutor_at_risk_students():
+
+    st.markdown(
+        '<div class="main-title">Students at Risk</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitle">'
+        'Students who may need extra support. '
+        'Reach out to offer tutoring help.'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    # --------------------------------------------------------
+    # Read the manual list from users.json
+    # --------------------------------------------------------
+
+    at_risk = USERS.get("students_at_risk", [])
+
+    if not at_risk:
+
+        st.info(
+            "No students are currently flagged as at-risk."
+        )
+        return
+
+    # --------------------------------------------------------
+    # Build table rows
+    # --------------------------------------------------------
+
+    rows = []
+
+    for entry in at_risk:
+
+        sid = str(entry.get("id", "")).strip()
+
+        if not sid:
+            continue   # skip malformed entries
+
+        name  = entry.get("name", "")
+        phone = entry.get("phone", "5141239999")
+
+        # Optional: fall back to the main students list for phone
+        if not phone:
+
+            student = get_student(sid)
+
+            if student:
+                phone = student.get("phone", "")
+
+        rows.append({
+            "Name":  name,
+            "Email": f"mailto:{sid}@champlaincollege.qc.ca",
+            "Phone": phone,
+        })
+
+    if not rows:
+
+        st.info("No valid at-risk students to display.")
+        return
+
+    # Alphabetical by name
+    rows.sort(key=lambda r: r["Name"].lower())
+
+    st.caption(f"{len(rows)} student(s) flagged.")
+
+    # --------------------------------------------------------
+    # Table: Name, Email, Phone
+    # --------------------------------------------------------
+
+    st.dataframe(
+        pd.DataFrame(rows),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Email": st.column_config.LinkColumn(
+                "Email",
+                display_text=r"mailto:(.+)"   # shows the email, click opens mail client
+            ),
+            "Phone": st.column_config.TextColumn(
+                "Phone",
+                width="small"
+            ),
+        }
+    )
 
 # ============================================================
 # MY COMMITMENTS
@@ -3688,8 +3781,8 @@ def main():
         elif page == "Available Classes":
             tutor_available_classes()
 
-        elif page == "My Commitments":
-            tutor_commitments()
+        elif page == "Student at-risk":
+            tutor_at_risk_students()
 
         elif page == "My Sessions":
             tutor_sessions()
