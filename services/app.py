@@ -470,6 +470,7 @@ def sidebar():
         pages = [
             "Dashboard",
             "Available Sessions",
+            "List of Tutors",
             "My Attendance"
         ]
 
@@ -2559,6 +2560,127 @@ def student_available_sessions():
                 )
 
                 st.rerun()
+
+
+
+
+
+# ============================================================
+# STUDENT — LIST OF TUTORS
+# ============================================================
+
+def student_list_tutors():
+
+    st.markdown(
+        '<div class="main-title">List of Tutors</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitle">'
+        'Browse our tutors and their contact information.'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    tutors = USERS.get("tutors", [])
+
+    if not tutors:
+
+        st.info("No tutors are currently registered.")
+        return
+
+    # --------------------------------------------------------
+    # Optional search box
+    # --------------------------------------------------------
+
+    search = st.text_input(
+        "Search by name",
+        placeholder="Type a tutor's name..."
+    ).strip().lower()
+
+    filtered = [
+        t for t in tutors
+        if not search or search in t["name"].lower()
+    ]
+
+    if not filtered:
+
+        st.warning("No tutors match your search.")
+        return
+
+    st.caption(f"Showing {len(filtered)} tutor(s).")
+    st.divider()
+
+    # --------------------------------------------------------
+    # Contact fields to display
+    #
+    # The app's users.json may only contain id/name/password.
+    # This block reads whichever contact fields exist so the
+    # page works regardless of what you add later.
+    # --------------------------------------------------------
+
+    CONTACT_FIELDS = [
+        ("email",  "📧 Email"),
+        ("phone",  "📞 Phone"),
+        ("office", "🏢 Office"),
+        ("subject","📚 Subject"),
+        ("bio",    "📝 Bio"),
+    ]
+
+    for tutor in filtered:
+
+        with st.container(border=True):
+
+            st.subheader(
+                f"👨‍🏫 {tutor['name']}"
+            )
+
+            st.caption(f"Tutor ID: {tutor['id']}")
+
+            # ----------------------------------------------
+            # Contact details
+            # ----------------------------------------------
+
+            shown = False
+
+            for key, label in CONTACT_FIELDS:
+
+                value = tutor.get(key)
+
+                if value:
+
+                    shown = True
+
+                    if key == "email":
+
+                        st.markdown(
+                            f"{label}: [{value}](mailto:{value})"
+                        )
+
+                    else:
+
+                        st.write(f"{label}: {value}")
+
+            if not shown:
+
+                st.info(
+                    "No contact information available yet."
+                )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ============================================================
 # STUDENT ATTENDANCE
