@@ -303,3 +303,84 @@ def update_attendance_checkout_in_sheet(att_id, check_out):
         if str(row["id"]) == str(att_id):
             ws.update_cell(i, 8, check_out.strftime("%Y-%m-%d %H:%M:%S"))
             break
+
+
+
+# ============================================================
+# USERS
+# ============================================================
+
+USERS_WORKSHEET = "Users"
+
+
+def read_users_from_sheet():
+    """Read the Users tab and return it in the users.json shape."""
+
+    spreadsheet = get_google_sheet()
+    ws = spreadsheet.worksheet("Users")
+    rows = ws.get_all_records()
+
+    admins = []
+    tutors = []
+    students = []
+    students_at_risk = []
+
+    for row in rows:
+
+        role = str(row.get("role", "")).strip().lower()
+        uid  = str(row.get("id", "")).strip()
+
+        if not role or not uid:
+            continue
+
+        entry = {
+            "id":   uid,
+            "name": str(row.get("name", "")).strip(),
+        }
+
+        password = str(row.get("password", "")).strip()
+        section = str(row.get("section", "")).strip()
+        email    = str(row.get("email", "")).strip()
+        phone    = str(row.get("phone", "")).strip()
+
+        if password: entry["password"] = password
+        if section: entry["section"] = section
+        if email:    entry["email"]    = email
+        if phone:    entry["phone"]    = phone
+
+        if role == "admin":
+            admins.append(entry)
+
+        elif role == "tutor":
+            tutors.append(entry)
+
+        elif role == "student":
+            students.append(entry)
+
+            if str(row.get("at_risk", "")).strip().upper() in ("TRUE", "1", "YES"):
+                students_at_risk.append({"id": uid, "name": entry["name"]})
+
+    return {
+        "admins":            admins,
+        "tutors":            tutors,
+        "students":          students,
+        "students_at_risk":  students_at_risk,
+    }
+
+
+def add_user_to_sheet(user):
+    """Append a new row to the Users tab."""
+
+    spreadsheet = get_google_sheet()
+    worksheet = spreadsheet.worksheet("Users")
+
+    worksheet.append_row([
+        user.get("role", "student"),
+        user.get("id", ""),
+        user.get("name", ""),
+        user.get("password", ""),
+        user.get("email", ""),
+        user.get("phone", ""),
+        user.get("section", ""),
+        "TRUE" if user.get("at_risk") else "FALSE",
+    ])

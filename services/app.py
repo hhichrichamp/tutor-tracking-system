@@ -25,7 +25,8 @@ from google_sheets import (
     add_class_to_sheet,
     read_sessions_from_sheet, read_class_signups_from_sheet, read_attendance_from_sheet,
     add_session_to_sheet, add_class_signup_to_sheet, add_attendance_to_sheet    ,
-    update_session_in_sheet, update_attendance_checkout_in_sheet
+    update_session_in_sheet, update_attendance_checkout_in_sheet , 
+    read_users_from_sheet, add_user_to_sheet
 )
 
 try:
@@ -136,9 +137,15 @@ st.markdown("""
 # ============================================================
 
 def load_users():
-
-    with open("data/users.json", "r", encoding="utf-8") as file:
-        return json.load(file)
+    try:
+        return read_users_from_sheet()
+    except Exception as e:
+        st.warning(
+            "Could not read Users sheet — "
+            "falling back to local users.json."
+        )
+        with open("data/users.json", "r", encoding="utf-8") as file:
+            return json.load(file)
 
 USERS = load_users()
 
@@ -2039,19 +2046,129 @@ def tutor_sessions():
                         student["name"]
                     )
 
-            if students:
+                        # ------------------------------------------------
+            # Registered students
+            # ------------------------------------------------
 
-                st.write(
-                    "Registered students: "
-                    + ", ".join(students)
+            session_students = session.get("session_students", [])
+
+            if session_students:
+
+                rows = []
+
+                for s in session_students:
+                    rows.append({
+                        "ID":      s.get("id", ""),
+                        "Name":    s.get("name", ""),
+                        "Section": s.get("section", ""),
+                    })
+
+                st.dataframe(
+                    pd.DataFrame(rows),
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "ID":      st.column_config.TextColumn("ID",      width="small"),
+                        "Section": st.column_config.TextColumn("Section", width="small"),
+                    }
                 )
 
             else:
 
-                st.info(
-                    "No students registered yet."
-                )
+                st.info("No students registered yet.")
 
+            # ------------------------------------------------
+            # Tutor registers a student
+            # (allowed before and during the session)
+            # ------------------------------------------------
+
+            if session["status"] in ["Scheduled", "Active"]:
+
+                with st.expander("➕ Register a student"):
+
+                    c1, c2, c3 = st.columns([2, 2, 1])
+
+                    with c1:
+                        new_sid = st.text_input(
+                            "Student ID *",
+                            key=f"reg_id_{session['id']}",
+                            placeholder="2633188"
+                        )
+
+                    with c2:
+                        new_name = st.text_input(
+                            "Student name (optional)",
+                            key=f"reg_name_{session['id']}",
+                            placeholder="Auto-filled if known"
+                        )
+
+                    with c3:
+                        new_section = st.text_input(
+                            "Section",
+                            key=f"reg_sec_{session['id']}",
+                            placeholder="A"
+                        )
+
+                    if st.button(
+                        "Add to session",
+                        key=f"reg_btn_{session['id']}",
+                        type="primary"
+                    ):
+
+                        new_sid = str(new_sid).strip()
+
+                        if not new_sid:
+
+                            st.error("Student ID is required.")
+
+                        elif any(
+                            str(s.get("id", "")).strip() == new_sid
+                            for s in session_students
+                        ):
+
+                            st.warning("This student is already registered.")
+
+                        else:
+
+                            # Resolve name: form > known > placeholder
+                            existing = get_student(new_sid)
+
+                            resolved_name = (
+                                new_name.strip()
+                                or (existing["name"] if existing else "")
+                                or f"Student {new_sid}"
+                            )
+
+                            # Auto-register unknown students
+                            if not existing:
+                                register_student_in_sheet(
+                                    new_sid,
+                                    resolved_name
+                                )
+
+                            session_students.append({
+                                "id":      new_sid,
+                                "name":    resolved_name,
+                                "section": new_section.strip(),
+                            })
+
+                            session["session_students"] = session_students
+                            session["student_ids"] = [
+                                s["id"] for s in session_students
+                            ]
+
+                            update_session_in_sheet(
+                                session["id"],
+                                {
+                                    "student_ids":      session["student_ids"],
+                                    "session_students": json.dumps(session_students),
+                                }
+                            )
+
+                            st.success(
+                                f"Registered {resolved_name} for this session."
+                            )
+                            st.rerun()
             # ====================================================
             # SCHEDULED
             # ====================================================
@@ -3083,17 +3200,17 @@ def tutoring_qr_page(session_id, token):
         # Verify student belongs to this session
         # -----------------------------------------------
 
-        # if student_id not in [
-        #     str(sid)
-        #     for sid in session["student_ids"]
-        # ]:
+        if student_id not in [
+            str(sid)
+            for sid in session["student_ids"]
+        ]:
 
-        #     st.error(
-        #         "You are not registered for this "
-        #         "tutoring session."
-        #     )
+            st.error(
+                "You are not registered for this "
+                "tutoring session."
+            )
 
-        #     return
+            return
         # -----------------------------------------------
         # IMPORTANT:
         # Verify that session has started
@@ -3704,6 +3821,34 @@ def format_excel_sheets(excel_buffer):
     wb.save(output)
     output.seek(0)
     return output
+
+
+def register_student_in_sheet(student_id, name, section):
+    """
+    Add a student to the Users sheet (and in-memory USERS)
+    if they are not already there.
+    """
+
+    student_id = str(student_id).strip()
+
+    if get_student(student_id):
+        return
+
+    record = {
+        "role":    "student",
+        "id":      student_id,
+        "name":    name,
+        "section": section,
+        "at_risk": False,
+    }
+
+    add_user_to_sheet(record)
+
+    USERS["students"].append({
+        "id":   student_id,
+        "name": name,
+        "section": section
+    })
 
 
 
