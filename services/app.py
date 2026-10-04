@@ -2105,8 +2105,9 @@ def tutor_sessions():
                     with c3:
                         new_section = st.text_input(
                             "Section",
-                            key=f"reg_sec_{session['id']}",
-                            placeholder="A"
+                            value="Haikel",
+                            placeholder="e.g. Haikel",
+                            key=f"reg_sec_{session['id']}"
                         )
 
                     if st.button(
