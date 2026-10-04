@@ -375,8 +375,8 @@ def add_user_to_sheet(user):
         user.get("id", ""),
         user.get("name", ""),
         user.get("password", ""),
+        user.get("section", ""),
         user.get("email", ""),
         user.get("phone", ""),
-        user.get("section", ""),
         "TRUE" if user.get("at_risk") else "FALSE",
     ])
