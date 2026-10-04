@@ -309,10 +309,6 @@ def update_attendance_checkout_in_sheet(att_id, check_out):
 # ============================================================
 # USERS
 # ============================================================
-
-USERS_WORKSHEET = "Users"
-
-
 def read_users_from_sheet():
     """Read the Users tab and return it in the users.json shape."""
 
