@@ -2144,7 +2144,8 @@ def tutor_sessions():
                             if not existing:
                                 register_student_in_sheet(
                                     new_sid,
-                                    resolved_name
+                                    resolved_name, 
+                                    section=new_section.strip()
                                 )
 
                             session_students.append({
