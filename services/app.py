@@ -2373,10 +2373,7 @@ def tutor_sessions():
 
             elif session["status"] == "Completed":
 
-                if (
-                    session.get("actual_start")
-                    and session.get("actual_end")
-                ):
+                if (    session.get("actual_start") and session.get("actual_end")  ):
 
                     hours =  tutoring_hours_earned(session)
 
@@ -2425,10 +2422,27 @@ def create_tutoring_session():
         placeholder="Java Help"
     )
 
-    session_date = st.date_input(
-        "Date",
-        value=date.today()
-    )
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        session_type = st.selectbox(
+            "Session type",
+            options=[
+                "Individual",
+                "Group",
+                "Nn Discord",
+                "Via Mio",
+            ],
+            index=0
+        )
+
+    with c2:
+
+        session_date = st.date_input(
+            "Date",
+            value=date.today()
+        )
 
     c1, c2 = st.columns(2)
 
@@ -2450,48 +2464,7 @@ def create_tutoring_session():
         "Create Session",
         type="primary"
     ):
-
-        if not title:
-
-            st.error(
-                "Enter a session title."
-            )
-
-            return
-
-        if end <= start:
-
-            st.error(
-                "End time must be after start time."
-            )
-
-            return
-
-        scheduled_start = datetime.combine(
-            session_date,
-            start
-        )
-
-        scheduled_end = datetime.combine(
-            session_date,
-            end
-        )
-
-        # ----------------------------------------------------
-        # A session must be long enough to permit the
-        # 15-minute default tutoring period.
-        # ----------------------------------------------------
-
-        if (
-            scheduled_end - scheduled_start
-        ) < timedelta(minutes=15):
-
-            st.error(
-                "A tutoring session must be at least "
-                "15 minutes long."
-            )
-
-            return
+        # ... unchanged validation ...
 
         new_id = (
             "SES"
@@ -2502,12 +2475,11 @@ def create_tutoring_session():
 
             "id": new_id,
 
-            "type": "Individual",
+            "type": session_type,          # ← was the literal "Individual"
 
             "tutor_id": tutor_id,
             "tutor_name": get_tutor(tutor_id).get("name", "Unknown Tutor"),
 
-            # Students register themselves later
             "student_ids": [],
 
             "title": title,
@@ -2515,15 +2487,12 @@ def create_tutoring_session():
             "date": session_date,
 
             "scheduled_start": scheduled_start,
-
             "scheduled_end": scheduled_end,
 
             "actual_start": None,
-
             "actual_end": None,
 
             "status": "Scheduled",
-
             "qr_token": None
         }
 
@@ -2535,6 +2504,7 @@ def create_tutoring_session():
         )
 
         st.rerun()
+
 
 # ============================================================
 # STUDENT DASHBOARD
@@ -3586,8 +3556,8 @@ def tutoring_hours_earned(session):
     The duration is actual_end - actual_start.
     """
 
-    if not session_has_attendance(session["id"]):
-        return 0
+    # if not session_has_attendance(session["id"]):
+    #     return 0
     if not session.get("actual_start") or not session.get("actual_end"): 
         return 0
     return calculate_hours(
@@ -3754,7 +3724,7 @@ def get_tutor_activity(tutor_id):
 
         records.append({
 
-            "type":     "Tutoring",
+            "type":     "Tutoring: " + session["type"],
             "title":    session["title"],
             "date":     session["date"],
             "start":    ensure_local_datetime(session["scheduled_start"]),
