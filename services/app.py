@@ -24,8 +24,8 @@ from google_sheets import (
     read_classes_from_sheet,
     add_class_to_sheet,
     read_sessions_from_sheet, read_class_signups_from_sheet, read_attendance_from_sheet,
-    add_session_to_sheet, add_class_signup_to_sheet, add_attendance_to_sheet    ,
-    update_session_in_sheet, update_attendance_checkout_in_sheet , 
+    add_session_to_sheet, add_class_signup_to_sheet, add_attendance_to_sheet,
+    update_session_in_sheet, update_attendance_checkout_in_sheet, 
     read_users_from_sheet, add_user_to_sheet
 )
 
