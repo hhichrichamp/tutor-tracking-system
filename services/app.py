@@ -2024,36 +2024,36 @@ def tutor_sessions():
                 f"{scheduled_start.strftime('%H:%M')} - "
                 f"{scheduled_end.strftime('%H:%M')}"
             )
+
             # ------------------------------------------------
-            # Students
-            # ------------------------------------------------
-
-            students = []
-
-            for sid in session.get("student_ids", []):
-
-                student = get_student(sid)
-
-                if student:
-                    students.append(
-                        student["name"]
-                    )
-
-                        # ------------------------------------------------
             # Registered students
             # ------------------------------------------------
 
-            session_students = session.get("session_students", [])
+            student_ids = session.get("student_ids", [])
 
-            if session_students:
+            if student_ids:
+
+                # Enrichment from the tutor-registration flow, keyed by ID.
+                # May be empty — that's fine, we fall back to USERS lookup.
+                enriched = {
+                    str(s.get("id", "")).strip(): s
+                    for s in session.get("session_students", [])
+                }
 
                 rows = []
 
-                for s in session_students:
+                for sid in student_ids:
+
+                    sid = str(sid).strip()
+                    student = get_student(sid)
+                    extra = enriched.get(sid)
+
                     rows.append({
-                        "ID":      s.get("id", ""),
-                        "Name":    s.get("name", ""),
-                        "Section": s.get("section", ""),
+                        "ID":      sid,
+                        "Name":    (extra or {}).get("name")
+                                or (student["name"] if student else f"Student {sid}"),
+                        "Section": (extra or {}).get("section", "")
+                                or (student.get("section", "") if student else ""),
                     })
 
                 st.dataframe(
@@ -2069,7 +2069,6 @@ def tutor_sessions():
             else:
 
                 st.info("No students registered yet.")
-
             # ------------------------------------------------
             # Tutor registers a student
             # (allowed before and during the session)
