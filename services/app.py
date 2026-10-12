@@ -2512,9 +2512,10 @@ def create_tutoring_session():
 
             "id": new_id,
 
-            "type": "Individual Tutoring",
+            "type": "Individual",
 
             "tutor_id": tutor_id,
+            "tutor_name": st.session_state.tutor.get("name", "Unknown Tutor"),
 
             # Students register themselves later
             "student_ids": [],
