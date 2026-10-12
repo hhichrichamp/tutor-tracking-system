@@ -212,26 +212,34 @@ def update_session_in_sheet(session_id, updated_fields: dict):
     """Patch specific columns of an existing session row by its ID."""
     spreadsheet = get_google_sheet()
     ws = spreadsheet.worksheet("Sessions")
-    records = ws.get_all_records()
+
+    header = ws.row_values(1)
     col_map = {
-        "status": 11, "actual_start": 9,
-        "actual_end": 10, "qr_token": 12, "student_ids": 4
+        str(name).strip().lower(): i + 1
+        for i, name in enumerate(header)
     }
+
+    records = ws.get_all_records()
+
     for i, row in enumerate(records, start=2):   # row 1 = header
         if str(row["id"]) == str(session_id):
             for field, value in updated_fields.items():
-                if field not in col_map:
-                    continue
+                field_key = str(field).strip().lower()
+                if field_key not in col_map:
+                    continue   # or raise, see note below
 
-                if field == "student_ids":
-                    value = ",".join(  "ID_" + str(student_id).strip()    for student_id in value  )
+                if field_key == "student_ids":
+                    if isinstance(value, str):
+                        value = [v for v in value.split(",") if v.strip()]
+                    value = ",".join(
+                        "ID_" + str(sid).strip() for sid in value
+                    )
 
                 elif hasattr(value, "strftime"):
-                    value = value.strftime(  "%Y-%m-%d %H:%M:%S"  )
+                    value = value.strftime("%Y-%m-%d %H:%M:%S")
 
-                ws.update_cell(   i, col_map[field],  value or ""  )
+                ws.update_cell(i, col_map[field_key], value or "")
             break
-
 
 # ── Attendance ─────────────────────────────────────────────────
 def read_attendance_from_sheet():

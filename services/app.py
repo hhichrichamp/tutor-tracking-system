@@ -524,17 +524,11 @@ def admin_dashboard():
     total_hours = 0
 
     for session in st.session_state.sessions:
-
         total_hours += tutoring_hours_earned(session)
 
     for att in st.session_state.attendance:
-
-        if (
-            att["type"] == "Class Support"
-            and att["tutor_id"]
-        ):
-
-            total_hours += tutoring_hours_earned(session)
+        if att["type"] == "Class Support" and att["tutor_id"]:
+            total_hours += calculate_hours(att["check_in"], att["check_out"])
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
@@ -1973,10 +1967,7 @@ def tutor_sessions():
 
     # Sort sessions in descending order by date and time
     my_sessions.sort(
-        key=lambda x: (
-            x["date"],
-            x["scheduled_start"]
-        ),
+        key=lambda x: ensure_local_datetime(x["scheduled_start"]),
         reverse=True
     )
 
@@ -3598,7 +3589,8 @@ def tutoring_hours_earned(session):
 
     if not session_has_attendance(session["id"]):
         return 0
-
+    if not session.get("actual_start") or not session.get("actual_end"): 
+        return 0
     return calculate_hours(
             session.get("actual_start"),
             session.get("actual_end")
