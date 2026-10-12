@@ -1666,7 +1666,7 @@ def tutor_available_classes():
                         "class_id": c["id"],
                         "class_name": f"{c['course']} — {c['title']}",
                         "tutor_id": tutor_id,  # ← Already a string
-                        "tutor_name": st.session_state.tutor.get("name", "Unknown Tutor"),
+                        "tutor_name": get_tutor(tutor_id)["name"] if get_tutor(tutor_id) else "Unknown",
                         "signup_time": now_local()
                     })
                     add_class_signup_to_sheet(st.session_state.class_signups[-1])
@@ -2515,7 +2515,7 @@ def create_tutoring_session():
             "type": "Individual",
 
             "tutor_id": tutor_id,
-            "tutor_name": st.session_state.tutor.get("name", "Unknown Tutor"),
+            "tutor_name": get_tutor(tutor_id).get("name", "Unknown Tutor"),
 
             # Students register themselves later
             "student_ids": [],
