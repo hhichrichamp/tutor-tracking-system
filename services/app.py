@@ -3556,8 +3556,8 @@ def tutoring_hours_earned(session):
     The duration is actual_end - actual_start.
     """
 
-    # if not session_has_attendance(session["id"]):
-    #     return 0
+    if not session_has_attendance(session["id"]):
+        return 0
     if not session.get("actual_start") or not session.get("actual_end"): 
         return 0
     return calculate_hours(
