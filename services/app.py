@@ -46,7 +46,7 @@ except Exception as e:
 # APPLICATION URL
 # ============================================================
 
-APP_URL = "https://tutor-center.streamlit.app"
+APP_URL = "https://coding-center.streamlit.app"
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -2576,7 +2576,7 @@ def student_dashboard():
 
     upcoming_sessions = [
         s for s in my_sessions
-        if (  ensure_local_datetime(s["scheduled_end"]) >= now_local()      )
+        # if (  ensure_local_datetime(s["scheduled_end"]) >= now_local()      )
     ]
     # Chronological order
     upcoming_sessions.sort(
