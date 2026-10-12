@@ -1664,7 +1664,9 @@ def tutor_available_classes():
                     st.session_state.class_signups.append({
                         "id": "SGN" + uuid.uuid4().hex[:8].upper(),
                         "class_id": c["id"],
+                        "class_name": f"{c['course']} — {c['title']}",
                         "tutor_id": tutor_id,  # ← Already a string
+                        "tutor_name": st.session_state.tutor.get("name", "Unknown Tutor"),
                         "signup_time": now_local()
                     })
                     add_class_signup_to_sheet(st.session_state.class_signups[-1])
