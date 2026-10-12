@@ -2576,11 +2576,12 @@ def student_dashboard():
 
     upcoming_sessions = [
         s for s in my_sessions
-        # if (  ensure_local_datetime(s["scheduled_end"]) >= now_local()      )
+        if (  ensure_local_datetime(s["scheduled_end"]) >= now_local()      )
     ]
     # Chronological order
     upcoming_sessions.sort(
-        key=lambda s: ensure_local_datetime(s["scheduled_start"])
+        key=lambda s: ensure_local_datetime(s["scheduled_start"]),
+        reverse=True
     )
 
     # --------------------------------------------------------
@@ -2669,7 +2670,7 @@ def student_available_sessions():
             continue
 
         # Do not show sessions that have already started more than 24 hours ago
-        if ensure_local_datetime(session["scheduled_start"]) <= (now_local() + timedelta(hours=24)):
+        if ensure_local_datetime(session["scheduled_start"]) <= (now_local() - timedelta(hours=24)):
             continue
 
         # Do not show sessions that already have this student
