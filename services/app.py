@@ -2580,8 +2580,7 @@ def student_dashboard():
     ]
     # Chronological order
     upcoming_sessions.sort(
-        key=lambda s: ensure_local_datetime(s["scheduled_start"]),
-        reverse=True
+        key=lambda s: ensure_local_datetime(s["scheduled_start"])
     )
 
     # --------------------------------------------------------
