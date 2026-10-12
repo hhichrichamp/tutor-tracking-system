@@ -121,12 +121,11 @@ def add_class_signup_to_sheet(signup_data):
     ws.append_row([
         signup_data["id"],                                    # add this field when you create signups
         signup_data["class_id"],
-        signup_data["class_name"]
+        signup_data["class_name"],
         "ID_"+signup_data["tutor_id"],
-        signup_data["tutor_name"]
+        signup_data["tutor_name"],
         signup_data["signup_time"].strftime("%Y-%m-%d %H:%M:%S")
-    ],
-        value_input_option="RAW")
+    ], value_input_option="RAW")
 
 
 # ── Sessions ───────────────────────────────────────────────────
