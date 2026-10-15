@@ -2460,40 +2460,38 @@ def create_tutoring_session():
             value=time(15, 0)
         )
 
-    if st.button(
-        "Create Session",
-        type="primary"
-    ):
-        # ... unchanged validation ...
+    if st.button("Create Session", type="primary"):
+        if not title.strip():
+            st.error("Enter a session title.")
+            return
 
-        new_id = (
-            "SES"
-            + uuid.uuid4().hex[:6].upper()
-        )
+        if end <= start:
+            st.error("End time must be after start time.")
+            return
+
+        scheduled_start = datetime.combine(session_date, start)
+        scheduled_end = datetime.combine(session_date, end)
+
+        if scheduled_end - scheduled_start < timedelta(minutes=15):
+            st.error("A tutoring session must be at least 15 minutes long.")
+            return
+
+        tutor = get_tutor(tutor_id)
 
         new_session = {
-
-            "id": new_id,
-
-            "type": session_type,          # ← was the literal "Individual"
-
+            "id": "SES" + uuid.uuid4().hex[:6].upper(),
+            "type": session_type,
             "tutor_id": tutor_id,
-            "tutor_name": get_tutor(tutor_id).get("name", "Unknown Tutor"),
-
+            "tutor_name": tutor["name"] if tutor else "Unknown Tutor",
             "student_ids": [],
-
-            "title": title,
-
+            "title": title.strip(),
             "date": session_date,
-
             "scheduled_start": scheduled_start,
             "scheduled_end": scheduled_end,
-
             "actual_start": None,
             "actual_end": None,
-
             "status": "Scheduled",
-            "qr_token": None
+            "qr_token": None,
         }
 
         st.session_state.sessions.append(new_session)
